@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Day2 SaveMyName Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Day2 SaveMyName</h1>
+      <p id="mode">模式：Demo</p>
+
+      <label>
+        Name
+        <input id="nameInput" type="text" placeholder="例如：Sneha" />
+      </label>
+
+      <label>
+        Bio
+        <input id="bioInput" type="text" placeholder="例如：Developer Relations Engineer" />
+      </label>
+
+      <div class="actions">
+        <button id="connectBtn">连接钱包</button>
+        <button id="addBtn" disabled>保存 Add</button>
+        <button id="retrieveBtn" disabled>读取 Retrieve</button>
+      </div>
+
+      <section class="output">
+        <p>链上 Name：<strong id="nameOut">-</strong></p>
+        <p>链上 Bio：<strong id="bioOut">-</strong></p>
+      </section>
+
+      <p id="status">准备就绪</p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

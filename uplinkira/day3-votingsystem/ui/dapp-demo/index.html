@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Day3 VotingSystem Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Day3 VotingSystem</h1>
+      <p id="mode">Mode: Demo</p>
+      <p id="status">Ready</p>
+
+      <section class="panel">
+        <label>
+          New Candidate
+          <input id="candidateInput" type="text" placeholder="e.g. Alice" />
+        </label>
+        <button id="addBtn" disabled>Add Candidate</button>
+      </section>
+
+      <section class="panel">
+        <label>
+          Vote For
+          <input id="voteInput" type="text" placeholder="Candidate name" />
+        </label>
+        <button id="voteBtn" disabled>Vote</button>
+      </section>
+
+      <section class="actions">
+        <button id="connectBtn">Connect Wallet</button>
+        <button id="refreshBtn" disabled>Refresh Board</button>
+      </section>
+
+      <section class="list-wrap">
+        <h2>Live Board</h2>
+        <ul id="board"></ul>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Day4 AuctionHouse Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Day4 AuctionHouse</h1>
+      <p id="mode">Mode: Demo</p>
+      <p id="status">Ready</p>
+
+      <section class="stats">
+        <p>Item: <strong id="item">-</strong></p>
+        <p>Owner: <strong id="owner">-</strong></p>
+        <p>Highest Bid: <strong id="highestBid">0</strong></p>
+        <p>Highest Bidder: <strong id="highestBidder">-</strong></p>
+        <p>Time Left: <strong id="timeLeft">-</strong></p>
+        <p>Ended: <strong id="ended">false</strong></p>
+      </section>
+
+      <section class="panel">
+        <label>
+          Bid Amount
+          <input id="amountInput" type="number" min="1" placeholder="e.g. 100" />
+        </label>
+        <button id="bidBtn" disabled>Place Bid</button>
+      </section>
+
+      <section class="actions">
+        <button id="connectBtn">Connect Wallet</button>
+        <button id="endBtn" disabled>End Auction</button>
+        <button id="refreshBtn" disabled>Refresh</button>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

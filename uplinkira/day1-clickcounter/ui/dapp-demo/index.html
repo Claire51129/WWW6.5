@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Day1 ClickCounter Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Day1 ClickCounter</h1>
+      <p id="mode">模式：Demo</p>
+      <p>当前计数：<strong id="counter">0</strong></p>
+      <div class="actions">
+        <button id="connectBtn">连接钱包</button>
+        <button id="clickBtn" disabled>Click +1</button>
+      </div>
+      <p id="status">准备就绪</p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+  </html>

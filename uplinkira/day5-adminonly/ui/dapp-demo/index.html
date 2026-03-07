@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Day5 AdminOnly Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Day5 AdminOnly</h1>
+      <p id="mode">Mode: Demo</p>
+      <p id="status">Ready</p>
+
+      <section class="stats">
+        <p>Owner: <strong id="owner">-</strong></p>
+        <p>Connected Account: <strong id="account">-</strong></p>
+        <p>Treasure Amount: <strong id="treasure">0</strong></p>
+        <p>My Allowance: <strong id="allowance">0</strong></p>
+      </section>
+
+      <section class="panel">
+        <label>
+          Add Treasure Amount (owner only)
+          <input id="addInput" type="number" min="1" />
+        </label>
+        <button id="addBtn" disabled>Add Treasure</button>
+      </section>
+
+      <section class="panel">
+        <label>
+          Approve Recipient (owner only)
+          <input id="recipientInput" type="text" placeholder="0x..." />
+        </label>
+        <label>
+          Approve Amount
+          <input id="approveInput" type="number" min="1" />
+        </label>
+        <button id="approveBtn" disabled>Approve Withdrawal</button>
+      </section>
+
+      <section class="panel">
+        <label>
+          Withdraw Amount
+          <input id="withdrawInput" type="number" min="1" />
+        </label>
+        <button id="withdrawBtn" disabled>Withdraw</button>
+      </section>
+
+      <section class="panel">
+        <label>
+          New Owner (owner only)
+          <input id="newOwnerInput" type="text" placeholder="0x..." />
+        </label>
+        <button id="transferBtn" disabled>Transfer Ownership</button>
+      </section>
+
+      <section class="actions">
+        <button id="connectBtn">Connect Wallet</button>
+        <button id="refreshBtn" disabled>Refresh</button>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
