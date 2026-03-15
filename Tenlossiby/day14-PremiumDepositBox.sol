@@ -19,10 +19,11 @@ contract PremiumDepositBox is BaseDepositBox{
     // 元数据更新事件，当元数据被修改时触发
     // indexed表示可以按owner地址搜索事件
 
-    function getBoxType() override public pure returns(string memory){
+    function getBoxType() external pure override returns(string memory){
     // 获取存款盒类型函数，重写父合约的虚函数
     // override表示重写父合约中的函数
-    // public表示可从内部和外部调用
+    // external表示只能从外部调用（与BasicDepositBox、TimeLockedDepositBox保持一致）
+    // 【修正说明】之前使用public，现改为external以统一风格
     // pure表示不读取也不修改状态
         return "Premium";
         // 返回"Premium"表示这是高级版存款盒
