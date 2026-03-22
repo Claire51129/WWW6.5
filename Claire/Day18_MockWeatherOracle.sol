@@ -4,10 +4,32 @@
 pragma solidity ^0.8.19;
 // 指定Solidity编译器版本为0.8.19及以上
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-// 导入 Chainlink 的预言机接口
-// AggregatorV3Interface 是 Chainlink 价格预言机的标准接口
-// 包含 decimals()、description()、latestRoundData() 等函数
+// 手动定义 Chainlink 接口（替代 import）
+interface AggregatorV3Interface {
+    function decimals() external view returns (uint8);
+    function description() external view returns (string memory);
+    function version() external view returns (uint256);
+    function getRoundData(uint80 _roundId)
+        external
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        );
+    function latestRoundData()
+        external
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        );
+}
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 // 导入 OpenZeppelin 的所有权管理合约
