@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day19 SignThis 教学面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    textarea {
+      min-height: 100px;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 280px;
+      margin-bottom: 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+      vertical-align: middle;
+    }
+    .tag.ok {
+      border-color: #22c55e;
+      color: #86efac;
+    }
+    .tag.warn {
+      border-color: #f59e0b;
+      color: #fcd34d;
+    }
+    .hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.55;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .intro-strong {
+      color: #cbd5e1;
+      margin-bottom: 10px;
+    }
+    ol.steps {
+      margin: 0;
+      padding-left: 1.25rem;
+      font-size: 13px;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+    ol.steps li {
+      margin-bottom: 6px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day19 SignThis 教学面板</h1>
+
+  <div class="card">
+    <p class="intro-strong">
+      与 <code>day19_SignThis.sol</code> 配套：<code>messageHash = keccak256(abi.encodePacked(attendee, address(this), eventName))</code>，
+      钱包按 <code>personal_sign</code> 规则对 32 字节摘要加前缀后签名；链上用 <code>ecrecover</code> 校验签名者是否为 <code>organizer</code>。
+    </p>
+    <p class="hint">
+      技术栈：原生 HTML + JS，ethers v6（CDN）。亦可使用仓库内 <code>day19_signScript.mjs</code> 在 Node 侧生成 <code>v/r/s</code>。
+    </p>
+    <p class="hint" style="margin-top:12px;padding:10px 12px;background:rgba(2,6,23,.6);border-radius:8px;border:1px solid #334155;">
+      <strong>只读调用可以怎么连节点？</strong><br />
+      方式一：填 <strong>RPC URL</strong>（任意 JSON-RPC 端点，也可用下方「公共示例」免注册）。<br />
+      方式二：<strong>RPC 留空</strong>，先点「连接 MetaMask」，只读会走<strong>钱包当前网络自带的节点</strong>，无需 Infura/Alchemy 账号。<br />
+      调用 <code>view</code> 函数时不广播交易、不花 gas；<strong>签名</strong>与<strong>写入</strong>仍必须用钱包。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. 网络、合约与只读查询</h2>
+    <label>链 ID（须与合约所在链、MetaMask 当前网络一致）</label>
+    <input id="chainId" type="text" placeholder="Sepolia 11155111；本地 Hardhat 常用 31337" value="11155111" />
+    <label>RPC URL（<strong>可选</strong>；留空则须先连接 MetaMask，只读走钱包节点）</label>
+    <input id="rpcUrl" type="text" placeholder="留空 = 使用已连接钱包的 RPC" />
+    <p class="hint" style="margin-top:0;">
+      不想注册服务商可复制<strong>公共 Sepolia</strong>（可能限流，教学够用）：<br />
+      <code>https://ethereum-sepolia.publicnode.com</code> · <code>https://rpc.sepolia.org</code><br />
+      更多见 <a href="https://chainlist.org" target="_blank" rel="noopener" style="color:#7dd3fc;">chainlist.org</a>。切勿把「Sepolia 链 ID」与本地 <code>127.0.0.1:8545</code> 混用（除非你真在本地链部署且链 ID 为 31337）。
+    </p>
+    <label><code>SignThis</code> 合约地址</label>
+    <input id="contractAddr" type="text" placeholder="0x..." />
+    <label>参与者地址 <code>attendee</code>（要被记为已签到的人）</label>
+    <input id="attendeeAddr" type="text" placeholder="0x..." />
+    <div class="toolbar">
+      <button type="button" id="btnRead">读取链上数据</button>
+      <span class="tag" id="readTag">未读取</span>
+    </div>
+    <div class="status" id="readStatus"></div>
+    <label style="margin-top:10px">读取结果</label>
+    <textarea id="readOut" readonly placeholder="eventName / organizer / messageHash …"></textarea>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>2. 步骤教学（按顺序做）</h2>
+      <p class="hint" style="margin-top:0;"><strong>阶段 A — 只读</strong></p>
+      <ol class="steps">
+        <li>在 Remix / Hardhat 等部署 <code>SignThis</code>；部署账户即为链上 <code>organizer</code>。</li>
+        <li>填入 <strong>链 ID</strong> 与 <strong>合约地址</strong>、<strong>attendee</strong>。只读二选一：<strong>填公共 RPC</strong>（见第 1 节示例），或<strong>先连接 MetaMask</strong> 后把 RPC 留空。</li>
+        <li>点「<strong>读取链上数据</strong>」：应看到 <code>eventName</code>、<code>organizer</code>、<code>messageHash</code>，且「本地复算」与链上一致。</li>
+      </ol>
+      <p class="hint"><strong>阶段 B — 链下签名（必须 organizer 的私钥；浏览器里 = 连 MetaMask 用该地址签）</strong></p>
+      <ol class="steps" start="4">
+        <li>点「<strong>连接 MetaMask</strong>」，切换到同一链；连接地址应为 <code>organizer</code>（页面会提示是否一致）。</li>
+        <li>点「<strong>对 messageHash 签名</strong>」，在钱包里确认；得到 <code>v, r, s</code>。（也可用 <code>day19_signScript.mjs</code> + 组织者私钥离线签出同样结果。）</li>
+      </ol>
+      <p class="hint"><strong>阶段 C — 链上校验与写入</strong></p>
+      <ol class="steps" start="6">
+        <li>点「<strong>verifySignature（只读）</strong>」：通过当前只读通道（自定义 RPC 或已连钱包）预检签名；若填了 RPC 可不连钱包做此步。</li>
+        <li>点「<strong>checkInWithSignature</strong>」：需已连接钱包，由<strong>任意账户</strong>付 gas；交易成功后 <code>attendee</code> 被记为已签到（合约不检查 <code>msg.sender</code> 是否为 attendee）。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>3. 连接钱包</h2>
+      <div class="toolbar">
+        <button type="button" id="btnConnect">连接 MetaMask</button>
+        <span class="tag" id="connTag">未连接</span>
+      </div>
+      <div class="status" id="acct"></div>
+      <p class="hint">发交易与签名必须连接。若 RPC 留空，阶段 A / verify 也要先连接，才能用钱包节点做只读。</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>4. 组织者签名</h2>
+      <p class="hint">须先成功读取 <code>messageHash</code>。当前连接地址应与链上 <code>organizer</code> 一致。</p>
+      <div class="toolbar">
+        <button type="button" id="btnSign" disabled>对 messageHash 签名</button>
+      </div>
+      <div class="status" id="organizerHint"></div>
+      <label style="margin-top:10px">签名结果（v / r / s）</label>
+      <textarea id="sigOut" readonly placeholder="签名后显示…"></textarea>
+    </div>
+    <div class="card">
+      <h2>5. 链上写入 / 预检</h2>
+      <p class="hint"><code>verifySignature</code> 为只读 <code>eth_call</code>，不发起交易；若填写了自定义 RPC 则不会为读数据弹钱包。<code>checkInWithSignature</code> 使用已连接钱包付 gas。</p>
+      <div class="toolbar">
+        <button type="button" class="secondary" id="btnVerify" disabled>verifySignature（只读）</button>
+        <button type="button" class="secondary" id="btnCheckIn" disabled>checkInWithSignature</button>
+      </div>
+      <div class="status" id="txStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    const ABI = [
+      "function getMessageHash(address attendee) view returns (bytes32)",
+      "function eventName() view returns (string)",
+      "function organizer() view returns (address)",
+      "function checkInWithSignature(address attendee, uint8 v, bytes32 r, bytes32 s)",
+      "function verifySignature(address attendee, uint8 v, bytes32 r, bytes32 s) view returns (bool)",
+    ];
+
+    let provider;
+    let signer;
+    let messageHashCached = null;
+    let lastSig = null;
+    let organizerCached = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function setReadTag(text, variant) {
+      const el = $("readTag");
+      el.textContent = text;
+      el.className = "tag" + (variant ? " " + variant : "");
+    }
+
+    function setConnTag(text, variant) {
+      const el = $("connTag");
+      el.textContent = text;
+      el.className = "tag" + (variant ? " " + variant : "");
+    }
+
+    function updateOrganizerHint() {
+      const box = $("organizerHint");
+      if (!organizerCached) {
+        box.textContent = "";
+        return;
+      }
+      if (!signer) {
+        box.textContent = "链上 organizer: " + organizerCached;
+        return;
+      }
+      signer.getAddress().then((a) => {
+        const ok = a.toLowerCase() === organizerCached.toLowerCase();
+        box.innerHTML = ok
+          ? '<span style="color:#86efac">当前账户与 organizer 一致，可以签名。</span>'
+          : '<span style="color:#fcd34d">当前账户 ' + a + " 与 organizer " + organizerCached + " 不一致，签出的结果将无法通过校验。</span>";
+      }).catch(() => {
+        box.textContent = "链上 organizer: " + organizerCached;
+      });
+    }
+
+    /** 只读通道：优先自定义 RPC，否则复用「连接 MetaMask」后的 BrowserProvider */
+    function resolveReadProvider() {
+      const rpc = $("rpcUrl").value.trim();
+      if (rpc) {
+        return new ethers.JsonRpcProvider(rpc);
+      }
+      if (provider) {
+        return provider;
+      }
+      return null;
+    }
+
+    $("btnRead").onclick = async () => {
+      $("readStatus").textContent = "";
+      $("readOut").value = "";
+      setReadTag("读取中…", "");
+      const rp = resolveReadProvider();
+      const ca = $("contractAddr").value.trim();
+      const att = $("attendeeAddr").value.trim();
+      if (!rp) {
+        setReadTag("未读取", "");
+        $("readStatus").textContent =
+          "请填写 RPC URL（可用第 1 节公共地址），或先连接 MetaMask 后将 RPC 留空。";
+        return;
+      }
+      if (!ethers.isAddress(ca) || !ethers.isAddress(att)) {
+        setReadTag("未读取", "");
+        $("readStatus").textContent = "合约地址与参与者地址须为合法 0x 地址。";
+        return;
+      }
+      try {
+        const c = new ethers.Contract(ca, ABI, rp);
+        const [name, org, mh] = await Promise.all([
+          c.eventName(),
+          c.organizer(),
+          c.getMessageHash(att),
+        ]);
+        organizerCached = org;
+        const local = ethers.solidityPackedKeccak256(
+          ["address", "address", "string"],
+          [att, ca, name]
+        );
+        const match = local === mh;
+        messageHashCached = mh;
+        $("readOut").value =
+          `eventName: ${name}\norganizer: ${org}\nmessageHash (链上): ${mh}\n本地复算: ${local}\n复算一致: ${match}`;
+        $("readStatus").textContent = match
+          ? "读取成功，messageHash 已缓存。"
+          : "复算与链上不一致，请检查网络 / 合约 / 地址。";
+        setReadTag(match ? "已同步" : "异常", match ? "ok" : "warn");
+        $("btnSign").disabled = !match;
+        if (!match) messageHashCached = null;
+        syncVerifyButton();
+        updateOrganizerHint();
+      } catch (e) {
+        setReadTag("失败", "warn");
+        $("readStatus").textContent = "读取失败: " + (e.shortMessage || e.message);
+        organizerCached = null;
+        messageHashCached = null;
+        $("btnSign").disabled = true;
+        syncVerifyButton();
+      }
+    };
+
+    $("btnConnect").onclick = async () => {
+      $("acct").textContent = "";
+      setConnTag("连接中…", "");
+      if (!window.ethereum) {
+        setConnTag("无注入", "warn");
+        $("acct").textContent = "未检测到 window.ethereum（请安装 MetaMask）。";
+        return;
+      }
+      const want = $("chainId").value.trim();
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      if (want) {
+        const idHex = "0x" + BigInt(want).toString(16);
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: idHex }],
+          });
+        } catch (e) {
+          setConnTag("网络错误", "warn");
+          $("acct").textContent = "切换网络失败: " + (e.message || e);
+          return;
+        }
+      }
+      signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+      setConnTag("已连接", "ok");
+      $("acct").textContent = "当前账户: " + addr;
+      $("btnCheckIn").disabled = !lastSig;
+      syncVerifyButton();
+      updateOrganizerHint();
+    };
+
+    function syncVerifyButton() {
+      $("btnVerify").disabled = !lastSig || resolveReadProvider() === null;
+    }
+
+    $("btnSign").onclick = async () => {
+      $("sigOut").value = "";
+      lastSig = null;
+      $("btnCheckIn").disabled = true;
+      $("btnVerify").disabled = true;
+      if (!messageHashCached) {
+        $("sigOut").value = "请先成功读取 messageHash。";
+        return;
+      }
+      if (!window.ethereum) {
+        $("sigOut").value = "需要 MetaMask。";
+        return;
+      }
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const s = await browserProvider.getSigner();
+      try {
+        const sig = await s.signMessage(ethers.getBytes(messageHashCached));
+        const parsed = ethers.Signature.from(sig);
+        lastSig = { v: parsed.v, r: parsed.r, s: parsed.s, full: sig };
+        $("sigOut").value =
+          `v: ${parsed.v}\nr: ${parsed.r}\ns: ${parsed.s}\n\nfull: ${sig}`;
+        $("btnCheckIn").disabled = !signer || !lastSig;
+        syncVerifyButton();
+      } catch (e) {
+        $("sigOut").value = "用户拒绝或失败: " + (e.message || e);
+      }
+    };
+
+    async function runWithSigner(fn) {
+      if (!signer) {
+        $("txStatus").textContent = "请先连接 MetaMask。";
+        return;
+      }
+      const ca = $("contractAddr").value.trim();
+      const att = $("attendeeAddr").value.trim();
+      if (!ethers.isAddress(ca) || !ethers.isAddress(att)) {
+        $("txStatus").textContent = "请填写合法合约地址与 attendee。";
+        return;
+      }
+      if (!lastSig) {
+        $("txStatus").textContent = "请先完成签名。";
+        return;
+      }
+      const c = new ethers.Contract(ca, ABI, signer);
+      await fn(c, att);
+    }
+
+    $("btnVerify").onclick = async () => {
+      $("txStatus").textContent = "";
+      const rp = resolveReadProvider();
+      const ca = $("contractAddr").value.trim();
+      const att = $("attendeeAddr").value.trim();
+      if (!rp) {
+        $("txStatus").textContent =
+          "请填写 RPC，或先连接 MetaMask（RPC 留空时使用钱包节点）。";
+        return;
+      }
+      if (!ethers.isAddress(ca) || !ethers.isAddress(att)) {
+        $("txStatus").textContent = "请填写合法合约地址与 attendee。";
+        return;
+      }
+      if (!lastSig) {
+        $("txStatus").textContent = "请先完成签名。";
+        return;
+      }
+      try {
+        $("txStatus").textContent = "正在调用 verifySignature（只读）…";
+        const c = new ethers.Contract(ca, ABI, rp);
+        const ok = await c.verifySignature(att, lastSig.v, lastSig.r, lastSig.s);
+        $("txStatus").textContent =
+          "verifySignature => " + (ok ? "true（与链上 ecrecover 逻辑一致）" : "false");
+      } catch (e) {
+        $("txStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnCheckIn").onclick = async () => {
+      $("txStatus").textContent = "";
+      try {
+        await runWithSigner(async (c, att) => {
+          $("txStatus").textContent = "发送交易中…";
+          const tx = await c.checkInWithSignature(att, lastSig.v, lastSig.r, lastSig.s);
+          $("txStatus").textContent = "已广播: " + tx.hash;
+          const rec = await tx.wait();
+          $("txStatus").textContent = "成功，区块: " + rec.blockNumber + "\nhash: " + tx.hash;
+        });
+      } catch (e) {
+        $("txStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("rpcUrl").addEventListener("input", syncVerifyButton);
+  </script>
+</body>
+</html>

@@ -14,46 +14,51 @@ contract VaultManager {
     event BoxCreated(address indexed owner, address indexed boxAddress, string boxType);
     event BoxNamed(address indexed boxAddress, string name);
 
+    modifier onlyBoxOwner(address boxAddress) {
+       bool owned = false;
+        for (uint i = 0; i < userDepositBoxes[msg.sender].length; i++) {
+            if (userDepositBoxes[msg.sender][i] == boxAddress) {
+                owned = true;
+                break;
+            }
+        }
+        require(owned, "Box not owned by sender");
+        _;
+    }
+
     function createBasicBox() external returns (address) {
-        BasicDepositBox box = new BasicDepositBox(msg.sender);
+        BasicDepositBox box = new BasicDepositBox();
         userDepositBoxes[msg.sender].push(address(box));
         emit BoxCreated(msg.sender, address(box), "Basic");
         return address(box);
     }
 
     function createPremiumBox() external returns (address) {
-        PremiumDepositBox box = new PremiumDepositBox(msg.sender);
+        PremiumDepositBox box = new PremiumDepositBox();
         userDepositBoxes[msg.sender].push(address(box));
         emit BoxCreated(msg.sender, address(box), "Premium");
         return address(box);
     }
 
     function createTimeLockedBox(uint256 lockDuration) external returns (address) {
-        TimeLockedDepositBox box = new TimeLockedDepositBox(msg.sender, lockDuration);
+        TimeLockedDepositBox box = new TimeLockedDepositBox(lockDuration);
         userDepositBoxes[msg.sender].push(address(box));
         emit BoxCreated(msg.sender, address(box), "TimeLocked");
         return address(box);
     }
 
-    function nameBox(address boxAddress, string calldata name) external {
-        IDepositBox box = IDepositBox(boxAddress);
-        require(box.getOwner() == msg.sender, "Not the box owner");
-
+    function nameBox(address boxAddress, string calldata name) external onlyBoxOwner(boxAddress) {
         boxNames[boxAddress] = name;
         emit BoxNamed(boxAddress, name);
     }
 
-    function storeSecret(address boxAddress, string calldata secret) external {
+    function storeSecret(address boxAddress, string calldata secret) external onlyBoxOwner(boxAddress) {
         IDepositBox box = IDepositBox(boxAddress);
-        require(box.getOwner() == msg.sender, "Not the box owner");
-
         box.storeSecret(secret);
     }
 
-    function transferBoxOwnership(address boxAddress, address newOwner) external {
+    function transferBoxOwnership(address boxAddress, address newOwner) external onlyBoxOwner(boxAddress){
         IDepositBox box = IDepositBox(boxAddress);
-        require(box.getOwner() == msg.sender, "Not the box owner");
-
         box.transferOwnership(newOwner);
 
         address[] storage boxes = userDepositBoxes[msg.sender];

@@ -1,6 +1,6 @@
 # Solidity学习互动演示GUI开发工作流程 Skill
 
-> 文档版本：20260313
+> 文档版本：20260320 (Day 21 已添加)
 
 ## 项目概述
 
@@ -15,7 +15,7 @@
 - **样式**: CSS3 (Flexbox布局)
 - **语言**: JavaScript
 
-### 目录结构（20260313更新）
+### 目录结构（20260317更新）
 ```
 GUI/
 ├── src/
@@ -33,11 +33,31 @@ GUI/
 │   │   └── days/                  # 各Day组件
 │   │       ├── Day1/ClickCounter.vue
 │   │       ├── Day2/SaveMyName.vue
-│   │       └── ...
+│   │       ├── Day11/InheritanceDemo.vue
+│   │       ├── Day12/ERC20Token.vue
+│   │       ├── Day13/ERC20TokenAdvanced.vue
+│   │       ├── Day14/SafeDeposit.vue      # 抽象合约 + 接口 + 工厂模式
+│   │       ├── Day15/GasEfficientVoting.vue # Gas 优化技术
+│   │       ├── Day16/PluginStore.vue      # 插件存储系统 + 动态调用
+│   │       ├── Day17/UpgradeHub.vue       # 可升级合约 + 代理模式
+│   │       ├── Day18/OracleContract.vue   # 预言机 + 参数保险
+│   │       ├── Day19/SignThis.vue         # 签名验证 + 无Gas空投
+│   │       ├── Day20/ReentryAttack.vue    # 重入攻击 + 安全防护
+│   │       └── Day21/SimpleNFT.vue        # ERC721 NFT标准 + 铸造/转移/授权
 │   ├── composables/               # 组合式函数
 │   │   ├── useDay1.js
 │   │   ├── useDay2.js
-│   │   └── ...
+│   │   ├── useDay11.js
+│   │   ├── useDay12.js
+│   │   ├── useDay13.js
+│   │   ├── useDay14.js            # SafeDeposit 业务逻辑
+│   │   ├── useDay15.js            # GasEfficientVoting 业务逻辑
+│   │   ├── useDay16.js            # PluginStore 业务逻辑 + ABI 编码
+│   │   ├── useDay17.js            # UpgradeHub 业务逻辑 + 升级机制
+│   │   ├── useDay18.js            # OracleContract 业务逻辑 + 双预言机
+│   │   ├── useDay19.js            # SignThis 业务逻辑 + ECDSA签名
+│   │   ├── useDay20.js            # ReentryAttack 业务逻辑 + 重入攻击模拟
+│   │   └── useDay21.js            # SimpleNFT 业务逻辑 + NFT铸造/转移/授权
 │   ├── data/
 │   │   ├── concepts.js            # 概念定义
 │   │   └── days.js                # 日程配置（核心配置）
@@ -51,7 +71,7 @@ GUI/
 └── skill.md                       # 本文件
 ```
 
-### 状态管理架构（20260313更新）
+### 状态管理架构（20260317更新）
 
 使用 Pinia 进行状态管理，替代了原来的集中式 App.vue 状态。
 
@@ -68,7 +88,17 @@ contracts: {
   day8: { owner, totalTips, conversionRates, isUserAdmin },
   day9: { owner, userAddress, isUserAdmin, scientificCalculatorAddress, isAddressSet, operationCount, operationHistory, challengeTasks },
   day10: { userProfile, workoutHistory, milestones, totalWorkouts, totalDistance },
-  day11: { owner, userAddress, contractBalance, eventLog, interactionCount }  // 继承 + 所有权管理
+  day11: { owner, userAddress, contractBalance, eventLog, interactionCount },  // 继承 + 所有权管理
+  day12: { tokenName, tokenSymbol, totalSupply, balances, allowances, userAddress },  // ERC20 代币标准
+  day13: { tokenName, tokenSymbol, totalSupply, balances, allowances, userAddress },  // ERC20 + virtual 函数
+  day14: { depositBoxes, eventLog, boxCounter, currentRole, currentAddress },  // 抽象合约 + 接口 + 工厂模式
+  day15: { proposals, proposalCounter, votesCast, storageBits, userAddress, eventLog },  // Gas 优化技术
+  day16: { profiles, plugins, pluginData, currentUser, pluginCounter },  // 插件存储系统 + 动态调用
+  day17: { plans, subscriptions, currentVersion, isUpgraded, paused },  // 可升级合约 + 代理模式
+  day18: { currentUser, currentRole, ethPrice, rainfall, hasInsurance, contractBalance },  // 预言机 + 参数保险
+  day19: { currentRole, currentUserAddress, organizer, generatedSignature, isEntered, participantsList },  // 签名验证 + 无Gas空投
+  day20: { currentRole, vaultBalance, userBalances, reentrancyStatus, isAttacking, attackCount },  // 重入攻击 + 安全防护
+  day21: { nfts, tokenApprovals, operatorApprovals, selectedTokenId, mintForm, transferForm, approveForm, operatorForm, queryForm }  // ERC721 NFT标准 + 铸造/转移/授权
 }
 
 // progressStore.js - 学习进度（自动从 dayConfigs 生成）
@@ -244,7 +274,7 @@ const dayComponents = {
 
 ## 部署检查清单
 
-- [ ] 所有日程功能正常工作（Day 1-11）
+- [ ] 所有日程功能正常工作（Day 1-16）
 - [ ] 概念解锁逻辑正确
 - [ ] PC端及移动端布局正常
 - [ ] 侧边栏切换可用

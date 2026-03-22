@@ -22,6 +22,12 @@ abstract contract BaseDepositBox is IDepositBox{
         depositTime = block.timestamp;
     }
 
+    // constructor(address _owner){
+    //     owner = _owner;
+    //     depositTime = block.timestamp;
+    // }
+
+
     function getOwner() public view override returns (address){
         return owner;
     }

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day21 SimpleNFT 教学面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    textarea {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 12px;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      min-height: 100px;
+      resize: vertical;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #a78bfa, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 280px;
+      margin-bottom: 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+      vertical-align: middle;
+    }
+    .tag.ok {
+      border-color: #22c55e;
+      color: #86efac;
+    }
+    .tag.warn {
+      border-color: #f59e0b;
+      color: #fcd34d;
+    }
+    .hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.55;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .intro-strong {
+      color: #cbd5e1;
+      margin-bottom: 10px;
+    }
+    ol.steps {
+      margin: 0;
+      padding-left: 1.25rem;
+      font-size: 13px;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+    ol.steps li {
+      margin-bottom: 6px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day21 SimpleNFT（迷你 ERC-721）教学面板</h1>
+
+  <div class="card">
+    <p class="intro-strong">
+      与 <code>day21_SimpleNFT.sol</code> 配套：<strong>NFT</strong>可类比为「带全局编号的所有权登记簿」——每个
+      <code>tokenId</code> 对应唯一一条记录，<code>ownerOf</code> 查当前持有人；<code>balanceOf</code> 统计某地址名下有多少个编号。
+      与 C 语言类比：<code>mapping(uint256 =&gt; address)</code> 像以整数为键的稀疏表；<code>transferFrom</code> 像带权限检查的指针改挂（改「谁拥有这个 ID」）。
+    </p>
+    <p class="hint">
+      <strong>接口 <code>IERC721</code></strong>类似 C 头文件里的函数表约定：钱包、交易所、浏览器都按同一套函数名与事件名交互。<strong>安全转账</strong>
+      <code>safeTransferFrom</code> 在接收方是合约时会回调 <code>onERC721Received</code>，避免把 NFT 打进「不会处理 NFT 的合约」里锁死；像嵌入式里给对端发消息前先看对端是否实现了某握手协议。
+    </p>
+    <p class="hint">
+      本教学合约的 <code>mint</code> 未加 <code>onlyOwner</code>，便于本地随便铸；主网项目务必加权限或销售逻辑。技术栈：原生 HTML + JS，ethers v6（CDN）。若直接打开文件遇 RPC CORS，可用 VS Code Live Server 或 <code>npx serve</code>。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. 网络与合约地址</h2>
+    <label>链 ID（须与合约所在链、MetaMask 当前网络一致）</label>
+    <input id="chainId" type="text" placeholder="Sepolia 11155111；本地 Hardhat 常用 31337" value="11155111" />
+    <label>RPC URL（可选；留空则只读可走已连接钱包的节点）</label>
+    <input id="rpcUrl" type="text" placeholder="留空 = 使用已连接钱包的 RPC" />
+    <p class="hint" style="margin-top:0;">
+      公共 Sepolia 示例：<code>https://ethereum-sepolia.publicnode.com</code> · 更多见
+      <a href="https://chainlist.org" target="_blank" rel="noopener" style="color:#7dd3fc;">chainlist.org</a>。
+    </p>
+    <label><code>SimpleNFT</code> 合约地址</label>
+    <input id="nftAddr" type="text" placeholder="0x..." />
+    <div class="toolbar">
+      <button type="button" id="btnReadMeta">读取 name / symbol</button>
+      <span class="tag" id="readTag">未读取</span>
+    </div>
+    <div class="status" id="readMetaStatus"></div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>2. 教学步骤（按顺序）</h2>
+      <p class="hint" style="margin-top:0;"><strong>阶段 A — 部署</strong></p>
+      <ol class="steps">
+        <li>在 Remix / Hardhat 部署 <code>SimpleNFT</code>，构造参数填入 <code>name</code>、<code>symbol</code>（如 <code>LearnNFT</code> / <code>LNFT</code>）。</li>
+        <li>将合约地址填入本节上方；链 ID 按实际网络填写。</li>
+        <li>点「读取 name / symbol」确认连到正确合约。</li>
+      </ol>
+      <p class="hint"><strong>阶段 B — 铸造与查询</strong></p>
+      <ol class="steps" start="4">
+        <li>连接 MetaMask；在「铸造」卡片填写接收地址与 <code>tokenURI</code> 字符串（可用 IPFS 链接或任意教学用 URL）。</li>
+        <li>发送 <code>mint</code> 后，页面会从交易收据里解析 <code>Transfer</code> 事件得到新 <code>tokenId</code>（合约内部计数器为 <code>private</code>，链外需靠事件或浏览器）。</li>
+        <li>在「按 tokenId 查询」输入编号，查 <code>ownerOf</code>、<code>tokenURI</code>、当前地址的 <code>balanceOf</code>。</li>
+      </ol>
+      <p class="hint"><strong>阶段 C — 授权与转移（可选）</strong></p>
+      <ol class="steps" start="7">
+        <li><code>approve</code>：授权某一地址转移<strong>单个</strong> tokenId。</li>
+        <li><code>setApprovalForAll</code>：授权某操作员转移你名下<strong>全部</strong> NFT（市场常用）。</li>
+        <li><code>transferFrom</code> / <code>safeTransferFrom</code>：在已授权或本人为 owner 时转移；对合约地址优先用 <code>safe</code> 路径做演示。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>3. 连接钱包</h2>
+      <div class="toolbar">
+        <button type="button" id="btnConnect">连接 MetaMask</button>
+        <span class="tag" id="connTag">未连接</span>
+      </div>
+      <div class="status" id="acct"></div>
+      <p class="hint">写入类交易须连接。只读 name/symbol 可填 RPC，或连接后留空 RPC。</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>4. 铸造 mint(to, uri)</h2>
+      <label>接收地址 <code>to</code></label>
+      <input id="mintTo" type="text" placeholder="默认可留空 = 当前连接地址" />
+      <label>元数据 URI（任意字符串，教学可用 https:// 或 ipfs://）</label>
+      <input id="mintUri" type="text" placeholder="例如 https://example.com/meta/1.json" value="https://example.com/nft/1.json" />
+      <div class="toolbar">
+        <button type="button" id="btnMint">mint</button>
+      </div>
+      <div class="status" id="mintStatus"></div>
+    </div>
+    <div class="card">
+      <h2>5. 按 tokenId 查询</h2>
+      <label>tokenId（从 1 递增）</label>
+      <input id="qTokenId" type="text" placeholder="1" value="1" />
+      <label>用于 balanceOf 的地址（留空 = 当前连接地址）</label>
+      <input id="qBalanceAddr" type="text" placeholder="留空 = 已连接地址" />
+      <div class="toolbar">
+        <button type="button" class="secondary" id="btnQuery">查询 ownerOf / tokenURI / balanceOf</button>
+      </div>
+      <div class="status" id="queryStatus"></div>
+      <label style="margin-top:10px">查询结果</label>
+      <textarea id="queryOut" readonly placeholder="—"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>6. 授权与转移（进阶）</h2>
+    <p class="hint">须已连接；<code>transferFrom</code> 的调用者须为 owner、或 getApproved、或经 setApprovalForAll 授权的操作员。</p>
+    <div class="row">
+      <div class="card" style="border:none;padding:0;background:transparent;">
+        <label>tokenId</label>
+        <input id="txTokenId" type="text" placeholder="1" />
+        <label>approve：被授权地址</label>
+        <input id="approveTo" type="text" placeholder="0x..." />
+        <div class="toolbar">
+          <button type="button" class="secondary" id="btnApprove">approve</button>
+        </div>
+        <div class="status" id="approveStatus"></div>
+      </div>
+      <div class="card" style="border:none;padding:0;background:transparent;">
+        <label>setApprovalForAll：操作员地址</label>
+        <input id="opAddr" type="text" placeholder="0x..." />
+        <label>是否授权（true / false）</label>
+        <input id="opApproved" type="text" placeholder="true" value="true" />
+        <div class="toolbar">
+          <button type="button" class="secondary" id="btnSetAll">setApprovalForAll</button>
+        </div>
+        <div class="status" id="setAllStatus"></div>
+      </div>
+    </div>
+    <label style="margin-top:12px">transferFrom：from / to</label>
+    <input id="tfFrom" type="text" placeholder="from 0x..." />
+    <input id="tfTo" type="text" placeholder="to 0x..." />
+    <div class="toolbar">
+      <button type="button" id="btnTf">transferFrom</button>
+      <button type="button" class="secondary" id="btnSafeTf">safeTransferFrom</button>
+    </div>
+    <div class="status" id="tfStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>7. 测试验收清单（自学对照）</h2>
+    <p class="hint" style="margin-top:0;">
+      部署：构造参数正确，浏览器可读到 <code>name</code>、<code>symbol</code>。<br />
+      铸造：成功则收据中有 <code>Transfer(0x0, to, tokenId)</code>；<code>ownerOf(tokenId) == to</code>；<code>tokenURI</code> 与输入一致。<br />
+      余额：<code>balanceOf</code> 在铸造后 +1，转出后 −1。<br />
+      转移：非 owner 未授权时 <code>transferFrom</code> 应回滚；<code>approve</code> 后指定地址可代转该 id。<br />
+      安全转账：接收方为实现了 <code>IERC721Receiver</code> 的合约时应成功；未实现时应失败（教学可部署 OpenZeppelin 的 <code>ERC721Holder</code> 对比）。
+    </p>
+  </div>
+
+  <script>
+    const NFT_ABI = [
+      "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function mint(address to, string memory uri)",
+      "function balanceOf(address owner) view returns (uint256)",
+      "function ownerOf(uint256 tokenId) view returns (address)",
+      "function tokenURI(uint256 tokenId) view returns (string)",
+      "function approve(address to, uint256 tokenId)",
+      "function getApproved(uint256 tokenId) view returns (address)",
+      "function setApprovalForAll(address operator, bool approved)",
+      "function isApprovedForAll(address owner, address operator) view returns (bool)",
+      "function transferFrom(address from, address to, uint256 tokenId)",
+      "function safeTransferFrom(address from, address to, uint256 tokenId)",
+    ];
+
+    let provider;
+    let signer;
+    const iface = new ethers.Interface(NFT_ABI);
+
+    const $ = (id) => document.getElementById(id);
+
+    function setReadTag(text, variant) {
+      const el = $("readTag");
+      el.textContent = text;
+      el.className = "tag" + (variant ? " " + variant : "");
+    }
+
+    function setConnTag(text, variant) {
+      const el = $("connTag");
+      el.textContent = text;
+      el.className = "tag" + (variant ? " " + variant : "");
+    }
+
+    function resolveReadProvider() {
+      const rpc = $("rpcUrl").value.trim();
+      if (rpc) {
+        return new ethers.JsonRpcProvider(rpc);
+      }
+      if (provider) {
+        return provider;
+      }
+      return null;
+    }
+
+    function requireNftAddr() {
+      const a = $("nftAddr").value.trim();
+      if (!ethers.isAddress(a)) {
+        throw new Error("请填写合法的 SimpleNFT 合约地址。");
+      }
+      return a;
+    }
+
+    $("btnReadMeta").onclick = async () => {
+      $("readMetaStatus").textContent = "";
+      setReadTag("读取中…", "");
+      const rp = resolveReadProvider();
+      if (!rp) {
+        setReadTag("未读取", "");
+        $("readMetaStatus").textContent = "请填写 RPC，或先连接 MetaMask 后将 RPC 留空。";
+        return;
+      }
+      let addr;
+      try {
+        addr = requireNftAddr();
+      } catch (e) {
+        setReadTag("未读取", "");
+        $("readMetaStatus").textContent = e.message || String(e);
+        return;
+      }
+      try {
+        const c = new ethers.Contract(addr, NFT_ABI, rp);
+        const [n, s] = await Promise.all([c.name(), c.symbol()]);
+        $("readMetaStatus").textContent = "name: " + n + "\nsymbol: " + s;
+        setReadTag("已读取", "ok");
+      } catch (e) {
+        setReadTag("失败", "warn");
+        $("readMetaStatus").textContent = "读取失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnConnect").onclick = async () => {
+      $("acct").textContent = "";
+      setConnTag("连接中…", "");
+      if (!window.ethereum) {
+        setConnTag("无注入", "warn");
+        $("acct").textContent = "未检测到 window.ethereum（请安装 MetaMask）。";
+        return;
+      }
+      const want = $("chainId").value.trim();
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      if (want) {
+        const idHex = "0x" + BigInt(want).toString(16);
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: idHex }],
+          });
+        } catch (e) {
+          setConnTag("网络错误", "warn");
+          $("acct").textContent = "切换网络失败: " + (e.message || e);
+          return;
+        }
+      }
+      signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+      setConnTag("已连接", "ok");
+      $("acct").textContent = "当前账户: " + addr;
+    };
+
+    function parseMintedTokenId(receipt, contractAddress) {
+      const target = contractAddress.toLowerCase();
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== target) continue;
+        try {
+          const parsed = iface.parseLog(log);
+          if (parsed && parsed.name === "Transfer") {
+            const from = parsed.args.from;
+            if (from === ethers.ZeroAddress) {
+              return parsed.args.tokenId;
+            }
+          }
+        } catch {
+          /* not our event */
+        }
+      }
+      return null;
+    }
+
+    $("btnMint").onclick = async () => {
+      $("mintStatus").textContent = "";
+      if (!signer) {
+        $("mintStatus").textContent = "请先连接 MetaMask。";
+        return;
+      }
+      let cAddr;
+      try {
+        cAddr = requireNftAddr();
+      } catch (e) {
+        $("mintStatus").textContent = e.message || String(e);
+        return;
+      }
+      const uri = $("mintUri").value.trim();
+      if (!uri) {
+        $("mintStatus").textContent = "请填写 tokenURI。";
+        return;
+      }
+      let to = $("mintTo").value.trim();
+      if (!to) {
+        to = await signer.getAddress();
+      } else if (!ethers.isAddress(to)) {
+        $("mintStatus").textContent = "接收地址不是合法 0x 地址。";
+        return;
+      }
+      try {
+        const c = new ethers.Contract(cAddr, NFT_ABI, signer);
+        $("mintStatus").textContent = "发送 mint…";
+        const tx = await c.mint(to, uri);
+        $("mintStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        const tid = parseMintedTokenId(rec, cAddr);
+        let msg = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+        if (tid != null) {
+          msg += "\n\n解析到新 tokenId: " + tid.toString();
+        } else {
+          msg += "\n\n（未在收据中解析到 Mint 的 Transfer 事件，请自行在浏览器查日志）";
+        }
+        $("mintStatus").textContent = msg;
+      } catch (e) {
+        $("mintStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnQuery").onclick = async () => {
+      $("queryStatus").textContent = "";
+      $("queryOut").value = "";
+      const rp = resolveReadProvider();
+      if (!rp) {
+        $("queryStatus").textContent = "请填写 RPC，或先连接 MetaMask。";
+        return;
+      }
+      let cAddr;
+      try {
+        cAddr = requireNftAddr();
+      } catch (e) {
+        $("queryStatus").textContent = e.message || String(e);
+        return;
+      }
+      let tokenId;
+      try {
+        tokenId = BigInt($("qTokenId").value.trim() || "0");
+      } catch {
+        $("queryStatus").textContent = "tokenId 无法解析为整数。";
+        return;
+      }
+      const balRaw = $("qBalanceAddr").value.trim();
+      let balAddr = balRaw;
+      if (!balAddr) {
+        if (!signer) {
+          $("queryStatus").textContent = "balanceOf 地址留空时需先连接钱包。";
+          return;
+        }
+        balAddr = await signer.getAddress();
+      } else if (!ethers.isAddress(balAddr)) {
+        $("queryStatus").textContent = "balanceOf 地址不合法。";
+        return;
+      }
+      try {
+        const c = new ethers.Contract(cAddr, NFT_ABI, rp);
+        const [owner, uri, bal, approved] = await Promise.all([
+          c.ownerOf(tokenId),
+          c.tokenURI(tokenId),
+          c.balanceOf(balAddr),
+          c.getApproved(tokenId),
+        ]);
+        $("queryOut").value =
+          "tokenId: " + tokenId.toString() +
+          "\nownerOf: " + owner +
+          "\ntokenURI: " + uri +
+          "\ngetApproved: " + approved +
+          "\nbalanceOf(" + balAddr + "): " + bal.toString();
+        $("queryStatus").textContent = "查询成功。";
+      } catch (e) {
+        $("queryStatus").textContent = "查询失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnApprove").onclick = async () => {
+      $("approveStatus").textContent = "";
+      if (!signer) {
+        $("approveStatus").textContent = "请先连接 MetaMask。";
+        return;
+      }
+      let cAddr;
+      try {
+        cAddr = requireNftAddr();
+      } catch (e) {
+        $("approveStatus").textContent = e.message || String(e);
+        return;
+      }
+      const to = $("approveTo").value.trim();
+      if (!ethers.isAddress(to)) {
+        $("approveStatus").textContent = "请填写合法的被授权地址。";
+        return;
+      }
+      let tokenId;
+      try {
+        tokenId = BigInt($("txTokenId").value.trim() || "0");
+      } catch {
+        $("approveStatus").textContent = "tokenId 无效。";
+        return;
+      }
+      try {
+        const c = new ethers.Contract(cAddr, NFT_ABI, signer);
+        $("approveStatus").textContent = "发送 approve…";
+        const tx = await c.approve(to, tokenId);
+        const rec = await tx.wait();
+        $("approveStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        $("approveStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnSetAll").onclick = async () => {
+      $("setAllStatus").textContent = "";
+      if (!signer) {
+        $("setAllStatus").textContent = "请先连接 MetaMask。";
+        return;
+      }
+      let cAddr;
+      try {
+        cAddr = requireNftAddr();
+      } catch (e) {
+        $("setAllStatus").textContent = e.message || String(e);
+        return;
+      }
+      const op = $("opAddr").value.trim();
+      if (!ethers.isAddress(op)) {
+        $("setAllStatus").textContent = "操作员地址不合法。";
+        return;
+      }
+      const apRaw = $("opApproved").value.trim().toLowerCase();
+      const approved = apRaw === "true" || apRaw === "1" || apRaw === "yes";
+      try {
+        const c = new ethers.Contract(cAddr, NFT_ABI, signer);
+        $("setAllStatus").textContent = "发送 setApprovalForAll…";
+        const tx = await c.setApprovalForAll(op, approved);
+        const rec = await tx.wait();
+        $("setAllStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        $("setAllStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnTf").onclick = async () => {
+      $("tfStatus").textContent = "";
+      if (!signer) {
+        $("tfStatus").textContent = "请先连接 MetaMask。";
+        return;
+      }
+      let cAddr;
+      try {
+        cAddr = requireNftAddr();
+      } catch (e) {
+        $("tfStatus").textContent = e.message || String(e);
+        return;
+      }
+      const from = $("tfFrom").value.trim();
+      const to = $("tfTo").value.trim();
+      if (!ethers.isAddress(from) || !ethers.isAddress(to)) {
+        $("tfStatus").textContent = "from / to 须为合法地址。";
+        return;
+      }
+      let tokenId;
+      try {
+        tokenId = BigInt($("txTokenId").value.trim() || "0");
+      } catch {
+        $("tfStatus").textContent = "tokenId 无效。";
+        return;
+      }
+      try {
+        const c = new ethers.Contract(cAddr, NFT_ABI, signer);
+        $("tfStatus").textContent = "发送 transferFrom…";
+        const tx = await c.transferFrom(from, to, tokenId);
+        const rec = await tx.wait();
+        $("tfStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        $("tfStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnSafeTf").onclick = async () => {
+      $("tfStatus").textContent = "";
+      if (!signer) {
+        $("tfStatus").textContent = "请先连接 MetaMask。";
+        return;
+      }
+      let cAddr;
+      try {
+        cAddr = requireNftAddr();
+      } catch (e) {
+        $("tfStatus").textContent = e.message || String(e);
+        return;
+      }
+      const from = $("tfFrom").value.trim();
+      const to = $("tfTo").value.trim();
+      if (!ethers.isAddress(from) || !ethers.isAddress(to)) {
+        $("tfStatus").textContent = "from / to 须为合法地址。";
+        return;
+      }
+      let tokenId;
+      try {
+        tokenId = BigInt($("txTokenId").value.trim() || "0");
+      } catch {
+        $("tfStatus").textContent = "tokenId 无效。";
+        return;
+      }
+      try {
+        const c = new ethers.Contract(cAddr, NFT_ABI, signer);
+        $("tfStatus").textContent = "发送 safeTransferFrom…";
+        const tx = await c.safeTransferFrom(from, to, tokenId);
+        const rec = await tx.wait();
+        $("tfStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        $("tfStatus").textContent = "失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+  </script>
+</body>
+</html>

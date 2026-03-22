@@ -1,6 +1,6 @@
 <template>
-  <div class="day-9-content">
-    <div class="content-layout">
+  <div class="day-9-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <div class="left-column">
         <div class="interaction-area">
           <h3>🎮 交互操作</h3>
@@ -255,13 +255,16 @@
       </div>
 
       <!-- 右侧：知识面板 -->
-      <KnowledgePanel
-        :current-day="9"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        @show-full-code="showFullCode = true"
-      />
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="9"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          @show-full-code="showFullCode = true"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗 -->
@@ -287,6 +290,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDay9 } from '@/composables/useDay9'
+import { useProgressStore } from '@/stores/progressStore'
 import { getFullCode } from '@/data/days'
 import KnowledgePanel from '@/components/shared/KnowledgePanel.vue'
 import FullCodeModal from '@/components/shared/FullCodeModal.vue'

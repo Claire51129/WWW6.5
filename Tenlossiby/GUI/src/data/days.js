@@ -75,6 +75,132 @@ export const dayConfigs = {
             "allowance",
             "transferFrom"
         ]
+    },
+    13: {
+        title: "Day 13 - MyToken 代币扩展",
+        subtitle: "ERC20进阶/Virtual & Inheritance",
+        concepts: [
+            "constructor_mint",
+            "zero_address_mint",
+            "internal_function",
+            "virtual_function"
+        ]
+    },
+    14: {
+        title: "Day 14 - 安全存款盒",
+        subtitle: "抽象合约、接口与工厂模式/Abstract, Interface & Factory",
+        concepts: [
+            "interface_definition",
+            "abstract_contract",
+            "inheritance",
+            "override_keyword",
+            "virtual_function",
+            "super_keyword",
+            "modifier_combination",
+            "factory_pattern",
+            "metadata_storage",
+            "time_lock"
+        ]
+    },
+    15: {
+        title: "Day 15 - Gas优化投票",
+        subtitle: "高效节能投票/GasEfficientVoting",
+        concepts: [
+            "compact_datatype",
+            "uint8_uint32",
+            "bytes32_string",
+            "storage_optimization",
+            "bit_operation",
+            "mapping_storage",
+            "mask_check",
+            "timestamp_block",
+            "event_logging"
+        ]
+    },
+    16: {
+        title: "Day 16 - 插件存储系统",
+        subtitle: "动态插件注册与低级别调用/PluginStore",
+        concepts: [
+            "struct_definition",
+            "mapping_storage",
+            "plugin_registration",
+            "low_level_call",
+            "abi_encoding",
+            "staticcall",
+            "dynamic_delegation",
+            "contract_interop"
+        ]
+    },
+    17: {
+        title: "Day 17",
+        subtitle: "可升级合约/UpgradeHub",
+        concepts: [
+            "proxy_pattern",
+            "delegatecall",
+            "storage_layout",
+            "upgrade_mechanism",
+            "logic_contract",
+            "fallback_function",
+            "data_persistence",
+            "version_control"
+        ]
+    },
+    18: {
+        title: "Day 18 - 预言机与参数保险",
+        subtitle: "预言机/OracleContract",
+        concepts: [
+            "oracle_interface",
+            "eth_usd_oracle",
+            "random_generation",
+            "purchase_insurance",
+            "price_conversion",
+            "parametric_payout",
+            "cooldown_mechanism",
+            "contract_balance"
+        ]
+    },
+    19: {
+        title: "Day 19 - 基于签名的活动参与",
+        subtitle: "ECDSA签名验证/SignThis",
+        concepts: [
+            "keccak256_hash",
+            "ecdsa_signature",
+            "signature_rsv",
+            "eip191_prefix",
+            "ecrecover",
+            "require_statement",
+            "mapping_storage",
+            "msg_sender"
+        ]
+    },
+    20: {
+        title: "Day 20 - 重入攻击与防护",
+        subtitle: "重入攻击/ReentrancyAttack",
+        concepts: [
+            "reentrancy_attack",
+            "fallback_receive",
+            "vulnerable_withdraw",
+            "deposit_function",
+            "checks_effects_interactions",
+            "reentrancy_guard",
+            "contract_balance",
+            "code_comparison"
+        ]
+    },
+    21: {
+        title: "Day 21 - NFT数字藏品",
+        subtitle: "ERC721标准/SimpleNFT",
+        concepts: [
+            "ierc721_interface",
+            "mint_function",
+            "token_id_counter",
+            "token_uri",
+            "balance_of",
+            "transfer_from",
+            "approve_mechanism",
+            "approval_for_all",
+            "safe_transfer"
+        ]
     }
 };
 
@@ -1227,6 +1353,1645 @@ contract SimpleERC20 {
         emit Transfer(_from, _to, _value);
     }
 }`;
+    } else if (day === 13) {
+        return `//SPDX-License-Identifier: MIT
+// SPDX许可证标识符，指定代码使用MIT开源许可证
+
+pragma solidity ^0.8.0;
+// 指定Solidity编译器版本为0.8.0或更高，但不包括1.0.0
+
+contract MyToken{
+// 定义一个名为MyToken的合约，这是一个ERC20代币合约
+
+    string public name = "Web3 Compass";
+    // 代币名称，公开可读
+    string public symbol = "WBT";
+    // 代币符号（简称），公开可读
+    uint8 public decimals = 18;
+    // 代币小数位数，ERC20标准通常为18位，公开可读
+    uint256 public totalSupply;
+    // 代币总供应量，公开可读
+
+    mapping(address => uint256) public balanceOf;
+    // 地址到余额的映射，记录每个地址持有的代币数量
+    mapping(address => mapping (address  => uint256)) public allowance;
+    // 嵌套映射，记录授权额度：allowance[所有者][被授权者] = 授权金额
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    // 转账事件，当代币被转移时触发，indexed表示可以按该字段搜索
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    // 授权事件，当所有者授权 spender 使用代币时触发
+
+    constructor(uint256 _initialSupply){
+    // 构造函数，合约部署时执行一次，传入初始供应量参数
+        totalSupply = _initialSupply * (10 ** decimals);
+        // 计算实际总供应量 = 初始值 × 10^18（考虑小数位）
+        balanceOf[msg.sender] = totalSupply;
+        // 将所有代币分配给合约部署者（创建者）
+        emit Transfer(address(0), msg.sender, _initialSupply);
+        // 触发转账事件，from地址为0表示这是新铸造的代币
+    } 
+
+    function _transfer(address _from, address _to, uint256 _value)internal virtual{
+    // 内部转账函数，只能在合约内部调用，virtual表示可被重写
+        require(_to != address(0), "Cannot transfer to the zero address");
+        // 检查：不能转账到零地址（防止代币丢失）
+        balanceOf[_from]-= _value;
+        // 从发送者余额中扣除转账金额
+        balanceOf[_to] += _value;
+        // 向接收者余额中增加转账金额
+        emit Transfer(_from, _to, _value);
+        // 触发转账事件，记录这笔转账
+    }
+     function transfer(address _to, uint256 _value)public virtual returns (bool success){ 
+     // 公共转账函数，允许用户直接转账自己的代币
+        require(balanceOf[msg.sender] >= _value , "Not enough balance");
+        // 检查：发送者余额必须足够
+        _transfer(msg.sender, _to, _value);
+        // 调用内部转账函数执行转账
+        return true;
+        // 返回true表示转账成功
+    
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value)public virtual returns(bool){
+    // 代转账函数，用于被授权者代替所有者转账（如交易所、DApp等场景）
+        require(balanceOf[_from] >= _value, "Not enough balance");
+        // 检查：所有者余额必须足够
+        require(allowance[_from][msg.sender]>= _value, "Not enough allowence");
+        // 检查：调用者的授权额度必须足够
+        allowance[_from][msg.sender]-= _value;
+        // 减少调用者的授权额度
+        _transfer(_from, _to, _value);
+        // 执行转账
+        return true;
+        // 返回true表示转账成功
+
+    }
+
+    function approve(address _spender, uint256 _value)public returns(bool){
+    // 授权函数，允许_spender使用调用者最多_value数量的代币
+        allowance[msg.sender][_spender] = _value;
+        // 设置授权额度
+        emit Approval(msg.sender, _spender, _value);
+        // 触发授权事件
+        return true;
+        // 返回true表示授权成功
+
+    }
+}`;
+    } else if (day === 14) {
+        return `// ==================== 文件 1: IDepositBox.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// 定义存款盒接口 - 规定所有存款盒必须实现的功能
+interface IDepositBox {
+    // 存入秘密的函数
+    function storeSecret(string calldata secret) external;
+    
+    // 取出秘密的函数
+    function getSecret() external view returns (string memory);
+    
+    // 转移所有权的函数
+    function transferOwnership(address newOwner) external;
+    
+    // 获取盒子类型的函数
+    function getBoxType() external view returns (string memory);
+    
+    // 获取当前所有者的函数
+    function getOwner() external view returns (address);
+}
+
+// ==================== 文件 2: BaseDepositBox.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IDepositBox.sol";
+
+// 抽象基础合约 - 实现通用功能，但不能直接部署
+abstract contract BaseDepositBox is IDepositBox {
+    // 状态变量
+    string internal secret;
+    address internal owner;
+    uint256 internal createdAt;
+    
+    // 修饰器：只有所有者可以调用
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+    
+    // 构造函数
+    constructor() {
+        owner = msg.sender;
+        createdAt = block.timestamp;
+    }
+    
+    // 虚函数：存入秘密（子合约可以重写）
+    function storeSecret(string calldata _secret) public virtual onlyOwner {
+        secret = _secret;
+    }
+    
+    // 虚函数：取出秘密（子合约可以重写）
+    function getSecret() public view virtual onlyOwner returns (string memory) {
+        return secret;
+    }
+    
+    // 转移所有权
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "New owner cannot be zero address");
+        owner = newOwner;
+    }
+    
+    // 获取当前所有者
+    function getOwner() public view returns (address) {
+        return owner;
+    }
+    
+    // 纯虚函数：获取盒子类型（必须由子合约实现）
+    function getBoxType() public view virtual returns (string memory);
+}
+
+// ==================== 文件 3: BasicDepositBox.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./BaseDepositBox.sol";
+
+// 基础存款盒 - 简单继承，无额外功能
+contract BasicDepositBox is BaseDepositBox {
+    // 只继承父合约功能，不添加新功能
+    
+    function getBoxType() public view override returns (string memory) {
+        return "Basic";
+    }
+}
+
+// ==================== 文件 4: PremiumDepositBox.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./BaseDepositBox.sol";
+
+// 高级存款盒 - 增加 metadata 功能
+contract PremiumDepositBox is BaseDepositBox {
+    // 额外的状态变量
+    string private metadata;
+    
+    // 设置元数据
+    function setMetadata(string calldata _metadata) public onlyOwner {
+        metadata = _metadata;
+    }
+    
+    // 获取元数据
+    function getMetadata() public view onlyOwner returns (string memory) {
+        return metadata;
+    }
+    
+    // 重写获取盒子类型
+    function getBoxType() public view override returns (string memory) {
+        return "Premium";
+    }
+}
+
+// ==================== 文件 5: TimeLockedDepositBox.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./BaseDepositBox.sol";
+
+// 时间锁定存款盒 - 增加时间锁功能
+contract TimeLockedDepositBox is BaseDepositBox {
+    // 解锁时间戳
+    uint256 private unlockTime;
+    
+    // 修饰器：检查是否已解锁
+    modifier timeUnlocked() {
+        require(block.timestamp >= unlockTime, "Box is still locked");
+        _;
+    }
+    
+    // 构造函数：设置锁定时间
+    constructor(uint256 _lockDuration) {
+        unlockTime = block.timestamp + _lockDuration;
+    }
+    
+    // 重写存入秘密
+    function storeSecret(string calldata _secret) public override onlyOwner {
+        secret = _secret;
+    }
+    
+    // 重写取出秘密：需要同时满足 onlyOwner 和 timeUnlocked
+    function getSecret() public view override onlyOwner timeUnlocked returns (string memory) {
+        return secret;
+    }
+    
+    // 获取解锁时间
+    function getUnlockTime() public view returns (uint256) {
+        return unlockTime;
+    }
+    
+    // 获取剩余锁定时间
+    function getRemainingLockTime() public view returns (uint256) {
+        if (block.timestamp >= unlockTime) {
+            return 0;
+        }
+        return unlockTime - block.timestamp;
+    }
+    
+    // 重写获取盒子类型
+    function getBoxType() public view override returns (string memory) {
+        return "TimeLocked";
+    }
+}
+
+// ==================== 文件 6: VaultManager.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./BasicDepositBox.sol";
+import "./PremiumDepositBox.sol";
+import "./TimeLockedDepositBox.sol";
+
+// 保险库管理器 - 工厂模式 + 管理功能
+contract VaultManager {
+    // 存储所有创建的存款盒
+    address[] public allBoxes;
+    
+    // 记录每个用户拥有的存款盒
+    mapping(address => address[]) public userBoxes;
+    
+    // 事件
+    event BoxCreated(address indexed owner, address indexed boxAddress, string boxType);
+    
+    // 创建基础存款盒
+    function createBasicBox() public returns (address) {
+        BasicDepositBox newBox = new BasicDepositBox();
+        address boxAddress = address(newBox);
+        
+        allBoxes.push(boxAddress);
+        userBoxes[msg.sender].push(boxAddress);
+        
+        emit BoxCreated(msg.sender, boxAddress, "Basic");
+        return boxAddress;
+    }
+    
+    // 创建高级存款盒
+    function createPremiumBox() public returns (address) {
+        PremiumDepositBox newBox = new PremiumDepositBox();
+        address boxAddress = address(newBox);
+        
+        allBoxes.push(boxAddress);
+        userBoxes[msg.sender].push(boxAddress);
+        
+        emit BoxCreated(msg.sender, boxAddress, "Premium");
+        return boxAddress;
+    }
+    
+    // 创建时间锁定存款盒
+    function createTimeLockedBox(uint256 _lockDuration) public returns (address) {
+        TimeLockedDepositBox newBox = new TimeLockedDepositBox(_lockDuration);
+        address boxAddress = address(newBox);
+        
+        allBoxes.push(boxAddress);
+        userBoxes[msg.sender].push(boxAddress);
+        
+        emit BoxCreated(msg.sender, boxAddress, "TimeLocked");
+        return boxAddress;
+    }
+    
+    // 获取用户的所有存款盒
+    function getMyBoxes() public view returns (address[] memory) {
+        return userBoxes[msg.sender];
+    }
+    
+    // 获取所有存款盒数量
+    function getTotalBoxes() public view returns (uint256) {
+        return allBoxes.length;
+    }
+    
+    // 完成所有权转移（新所有者调用）
+    function completeOwnershipTransfer(address boxAddress) public {
+        IDepositBox box = IDepositBox(boxAddress);
+        require(box.getOwner() == msg.sender, "You are not the new owner");
+        
+        userBoxes[msg.sender].push(boxAddress);
+    }
+}`;
+    } else if (day === 15) {
+        return `\ ==================== GasEfficientVoting.sol ====================
+\\ SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// Gas 优化投票合约
+// 展示如何使用紧凑数据类型和位运算优化 Gas 消耗
+contract GasEfficientVoting {
+
+    // ==================== 紧凑数据类型优化 ====================
+
+    // 使用 uint8 而非 uint256，节省 31 字节存储空间
+    uint8 public proposalCount;  // 最多支持 255 个提案
+
+    // 提案结构体 - 使用紧凑数据类型
+    struct Proposal {
+        uint32 id;           // 4 字节：提案 ID
+        uint32 voteCount;    // 4 字节：投票数
+        uint64 startTime;    // 8 字节：开始时间
+        uint64 endTime;      // 8 字节：结束时间
+        bool executed;       // 1 字节：是否已执行
+        bytes32 name;        // 32 字节：固定长度名称（比 string 更省 Gas）
+        address creator;     // 20 字节：创建者地址
+    }
+
+    // ==================== 映射存储 ====================
+
+    // 提案 ID → 提案详情
+    mapping(uint256 => Proposal) public proposals;
+
+    // 地址 → 投票位图（1个 uint256 可存储 256 个提案的投票状态）
+    mapping(address => uint256) public voterRegistry;
+
+    // 提案 ID → 投票数（使用 uint32 足够大）
+    mapping(uint256 => uint32) public proposalVoterCount;
+
+    // ==================== 事件定义 ====================
+
+    event ProposalCreated(uint256 indexed id, bytes32 name, uint256 endTime);
+    event Voted(address indexed voter, uint256 indexed proposalId);
+    event ProposalExecuted(uint256 indexed id, uint256 voteCount);
+
+    // ==================== 核心功能 ====================
+
+    // 创建提案
+    function createProposal(bytes32 _name, uint256 _durationMinutes) public {
+        uint256 proposalId = proposalCount;
+
+        // 创建新提案
+        proposals[proposalId] = Proposal({
+            id: uint32(proposalId),
+            voteCount: 0,
+            startTime: uint64(block.timestamp),
+            endTime: uint64(block.timestamp + _durationMinutes * 1 minutes),
+            executed: false,
+            name: _name,
+            creator: msg.sender
+        });
+
+        proposalCount++;  // uint8 自动溢出检查
+
+        emit ProposalCreated(proposalId, _name, block.timestamp + _durationMinutes * 1 minutes);
+    }
+
+    // 投票功能 - 使用位运算记录投票状态
+    function vote(uint256 _proposalId) public {
+        Proposal storage proposal = proposals[_proposalId];
+
+        // 检查提案是否存在
+        require(proposal.creator != address(0), "Proposal does not exist");
+        require(!proposal.executed, "Proposal already executed");
+
+        // 检查投票时间窗口
+        require(block.timestamp >= proposal.startTime, "Voting not started");
+        require(block.timestamp <= proposal.endTime, "Voting ended");
+
+        // ==================== 位运算技巧 ====================
+
+        // 生成掩码：1 左移 proposalId 位
+        // 例如：proposalId = 5，mask = 0b100000 (二进制)
+        uint256 mask = 1 << _proposalId;
+
+        // 获取当前选民的投票位图
+        uint256 voterData = voterRegistry[msg.sender];
+
+        // 掩码检查：使用与运算检查是否已投票
+        require((voterData & mask) == 0, "Already voted");
+
+        // 记录投票：使用或运算设置对应位为 1
+        voterRegistry[msg.sender] = voterData | mask;
+
+        // 增加投票计数
+        proposal.voteCount++;
+        proposalVoterCount[_proposalId]++;
+
+        emit Voted(msg.sender, _proposalId);
+    }
+
+    // 执行提案
+    function executeProposal(uint256 _proposalId) public {
+        Proposal storage proposal = proposals[_proposalId];
+
+        // 检查提案是否存在
+        require(proposal.creator != address(0), "Proposal does not exist");
+
+        // 检查投票是否已结束
+        require(block.timestamp > proposal.endTime, "Voting still in progress");
+
+        // 检查是否已执行
+        require(!proposal.executed, "Already executed");
+
+        // 标记为已执行
+        proposal.executed = true;
+
+        emit ProposalExecuted(_proposalId, proposal.voteCount);
+    }
+
+    // ==================== 查询功能 ====================
+
+    // 检查地址是否对某提案投过票
+    function hasVoted(address _voter, uint256 _proposalId) public view returns (bool) {
+        uint256 mask = 1 << _proposalId;
+        uint256 voterData = voterRegistry[_voter];
+        return (voterData & mask) != 0;
+    }
+
+    // 获取提案详情
+    function getProposal(uint256 _proposalId) public view returns (
+        uint32 id,
+        bytes32 name,
+        uint32 voteCount,
+        uint64 startTime,
+        uint64 endTime,
+        bool executed,
+        address creator
+    ) {
+        Proposal storage proposal = proposals[_proposalId];
+        require(proposal.creator != address(0), "Proposal does not exist");
+
+        return (
+            proposal.id,
+            proposal.name,
+            proposal.voteCount,
+            proposal.startTime,
+            proposal.endTime,
+            proposal.executed,
+            proposal.creator
+        );
+    }
+
+    // 获取选民的投票位图（用于调试）
+    function getVoterBitmap(address _voter) public view returns (uint256) {
+        return voterRegistry[_voter];
+    }
+}
+
+\\ ==================== Gas 优化要点总结 ====================
+\\
+\\ 1. 紧凑数据类型：
+\\    - uint8 (1 字节) 代替 uint256 (32 字节) 存储小范围数字
+\\    - uint32 (4 字节) 存储投票数，最大值 42 亿
+\\    - uint64 (8 字节) 存储时间戳，支持到公元 294,247 年
+\\
+\\ 2. 固定长度类型：
+\\    - bytes32 (32 字节) 代替 string，避免动态存储开销
+\\    - 适合存储固定长度的短文本和哈希值
+\\
+\\ 3. 位运算优化：
+\\    - 1 个 uint256 (32 字节) 存储 256 个布尔值
+\\    - 相比 mapping(uint256 => bool)，节省约 40% Gas
+\\    - 关键操作：生成掩码(<<)、检查(&)、设置(|)
+\\
+\\ 4. 存储布局优化：
+\\    - 将多个小变量打包到同一存储槽位
+\\    - 减少存储读取次数，降低 Gas 消耗
+\\
+\\ 5. 事件日志：
+\\    - 使用 indexed 参数实现链下高效检索
+\
+\    - 事件不占用状态存储，只消耗少量 Gas`;
+    } else if (day === 16) {
+        return `// ==================== PluginStore.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// PluginStore - 插件存储合约
+// 这是一个插件系统的核心合约，允许注册和调用各种插件
+// 支持玩家资料管理和插件的动态调用
+contract PluginStore {
+
+    // ==================== 结构体定义 ====================
+    // 玩家资料结构体
+    // name: 玩家名称
+    // avatar: 玩家头像标识
+    struct PlayerProfile {
+        string name;
+        string avatar;
+    }
+
+    // ==================== 映射存储 ====================
+    // 存储每个地址的玩家资料
+    mapping(address => PlayerProfile) public profiles;
+
+    // 存储已注册的插件
+    // key: 插件标识符（字符串）
+    // value: 插件合约地址
+    mapping(string => address) public plugins;
+
+    // ==================== 玩家资料管理 ====================
+    // 设置玩家资料
+    function setProfile(string memory _name, string memory _avatar) external {
+        profiles[msg.sender] = PlayerProfile(_name, _avatar);
+    }
+
+    // 获取玩家资料
+    function getProfile(address user) external view returns (string memory, string memory) {
+        PlayerProfile memory profile = profiles[user];
+        return (profile.name, profile.avatar);
+    }
+
+    // ==================== 插件注册 ====================
+    // 注册插件
+    function registerPlugin(string memory key, address pluginAddress) external {
+        plugins[key] = pluginAddress;
+    }
+
+    // 获取插件地址
+    function getPlugin(string memory key) external view returns (address) {
+        return plugins[key];
+    }
+
+    // ==================== 低级别调用 (call) ====================
+    // 执行插件函数（状态改变）
+    function runPlugin(
+        string memory key, 
+        string memory functionSignature, 
+        address user, 
+        string memory argument
+    ) external {
+        // 获取插件地址
+        address plugin = plugins[key];
+        require(plugin != address(0), "Plugin not registered");
+
+        // ABI编码函数调用数据
+        bytes memory data = abi.encodeWithSignature(functionSignature, user, argument);
+
+        // 使用 low-level call 调用插件合约
+        (bool success, ) = plugin.call(data);
+        require(success, "Plugin execution failed");
+    }
+
+    // ==================== 静态调用 (staticcall) ====================
+    // 执行插件函数（只读视图）
+    function runPluginView(
+        string memory key, 
+        string memory functionSignature, 
+        address user
+    ) external view returns (string memory) {
+        address plugin = plugins[key];
+        require(plugin != address(0), "No plugin found");
+
+        // ABI编码函数调用数据
+        bytes memory data = abi.encodeWithSignature(functionSignature, user);
+
+        // 使用 staticcall 调用插件合约（不修改状态）
+        (bool success, bytes memory result) = plugin.staticcall(data);
+        require(success, "Plugin execution failed");
+
+        // 解码返回数据
+        return abi.decode(result, (string));
+    }
+}
+
+// ==================== WeaponStorePlugin.sol ====================
+// 武器商店插件合约
+contract WeaponStorePlugin {
+    // 存储每个用户当前装备的武器
+    mapping(address => string) public equippedWeapon;
+
+    // 设置用户的装备武器
+    function setWeapon(address user, string memory weapon) public {
+        equippedWeapon[user] = weapon;
+    }
+
+    // 获取用户当前装备的武器
+    function getWeapon(address user) public view returns (string memory) {
+        return equippedWeapon[user];
+    }
+}
+
+// ==================== AchievementsPlugin.sol ====================
+// 成就插件合约
+contract AchievementsPlugin {
+    // 存储每个用户的最新成就
+    mapping(address => string) public latestAchievement;
+
+    // 设置用户的成就
+    function setAchievement(address user, string memory achievement) public {
+        latestAchievement[user] = achievement;
+    }
+
+    // 获取用户的最新成就
+    function getAchievement(address user) public view returns (string memory) {
+        return latestAchievement[user];
+    }
+}
+
+// ==================== 使用示例 ====================
+// pluginStore.runPlugin("weapon", "setWeapon(address,string)", msg.sender, "Golden Axe");
+// 这将调用名为 "weapon" 的插件的 setWeapon 函数，为用户装备 "Golden Axe"
+
+// ==================== 核心概念总结 ====================
+//
+// 1. 结构体 (struct):
+//    - 将多个相关数据组合成自定义类型
+//    - PlayerProfile 包含 name 和 avatar
+//
+// 2. 映射 (mapping):
+//    - 键值对存储，O(1) 读写效率
+//    - profiles: address => PlayerProfile
+//    - plugins: string => address
+//
+// 3. 低级别调用 (call/staticcall):
+//    - call: 可修改状态的动态调用
+//    - staticcall: 只读调用，保证不修改状态
+//    - 返回 (bool success, bytes result)
+//
+// 4. ABI编码:
+//    - abi.encodeWithSignature: 编码函数调用
+//    - abi.decode: 解码返回值
+//    - 函数选择器: 函数签名的前4字节(keccak256哈希)
+//
+// 5. 插件架构:
+//    - 核心合约管理插件注册表
+//    - 插件合约实现具体功能
+//    - 动态委托实现功能扩展`;
+    } else if (day === 17) {
+        return `// ==================== day17-SubscriptionStorageLayout.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// SubscriptionStorageLayout - 订阅存储布局合约
+// 这是可升级合约架构中的基础合约
+// 定义了所有存储变量，确保代理合约和逻辑合约的存储布局一致
+// 存储布局的一致性是可升级合约的关键！
+contract SubscriptionStorageLayout {
+
+    // 当前逻辑合约地址
+    // 代理合约使用此地址进行 delegatecall
+    address public logicContract;
+
+    // 合约所有者地址
+    // 拥有升级合约等特权操作权限
+    address public owner;
+
+    // 订阅信息结构体
+    // planId: 订阅计划 ID（如 1=基础版, 2=高级版）
+    // expiry: 订阅过期时间戳（秒）
+    // paused: 是否处于暂停状态（V2 新增字段）
+    struct Subscription {
+        uint8 planId;
+        uint256 expiry;
+        bool paused;
+    }
+
+    // 用户地址到订阅信息的映射
+    // 存储每个用户的订阅详情
+    mapping(address => Subscription) public subscriptions;
+
+    // 计划 ID 到价格的映射
+    // 存储每个订阅计划的价格（wei）
+    mapping(uint8 => uint256) public planPrices;
+
+    // 计划 ID 到持续时间的映射
+    // 存储每个订阅计划的有效期（秒）
+    mapping(uint8 => uint256) public planDuration;
+
+    // 安全间隙 - 防止未来升级时存储冲突
+    // 这是一个预留的存储空间，用于未来的存储变量
+    // 如果不预留，添加新变量可能会与继承合约的存储发生冲突
+    // 50 个 uint256 槽位提供了充足的安全缓冲
+    uint256[50] private __gap;
+}
+
+// ==================== day17-SubscriptionStorage.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// 导入存储布局合约
+import "./day17-SubscriptionStorageLayout.sol";
+
+// SubscriptionStorage - 订阅存储代理合约
+// 这是可升级合约架构中的代理合约（Proxy）
+// 负责存储所有数据，并将函数调用委托给逻辑实现合约
+// 使用 delegatecall 实现数据和逻辑的分离
+contract SubscriptionStorage is SubscriptionStorageLayout {
+
+    // 构造函数
+    // _logicContract: 初始逻辑合约地址
+    constructor(address _logicContract) {
+        owner = msg.sender;           // 设置合约所有者
+        logicContract = _logicContract;  // 设置初始逻辑合约
+    }
+
+    // 升级逻辑合约（仅合约所有者）
+    // _newLogic: 新的逻辑合约地址
+    // 这是可升级合约的核心功能
+    function upgradeTo(address _newLogic) external {
+        require(msg.sender == owner, "Not owner");
+        logicContract = _newLogic;
+    }
+
+    // 回退函数（fallback）- 处理所有未匹配的函数调用
+    // 使用 delegatecall 将调用委托给逻辑合约
+    // delegatecall 会在当前合约的存储上下文中执行逻辑合约的代码
+    fallback() external payable {
+        // 获取当前逻辑合约地址
+        address impl = logicContract;
+        require(impl != address(0), "Implementation not set");
+
+        // 使用内联汇编执行 delegatecall
+        assembly {
+            // 1. 将调用数据（calldata）复制到内存位置 0
+            calldatacopy(0, 0, calldatasize())
+
+            // 2. 执行 delegatecall
+            // delegatecall(gas, target, inOffset, inSize, outOffset, outSize)
+            // 这会在当前合约的存储上下文中执行 impl 合约的代码
+            let result := delegatecall(gas(), impl, 0, calldatasize(), 0, 0)
+
+            // 3. 将返回数据复制到内存
+            returndatacopy(0, 0, returndatasize())
+
+            // 4. 根据调用结果返回或回滚
+            switch result
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+
+    // 接收函数（receive）- 处理纯 ETH 转账
+    receive() external payable {}
+}
+
+// ==================== day17-SubscriptionLogicV1.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// 导入存储布局合约
+import "./day17-SubscriptionStorageLayout.sol";
+
+// SubscriptionLogicV1 - 订阅逻辑合约 V1
+// 这是可升级合约架构中的逻辑实现合约
+// 使用代理模式（Proxy Pattern）实现合约升级
+// 注意: 逻辑合约本身不存储数据，数据存储在代理合约中
+contract SubscriptionLogicV1 is SubscriptionStorageLayout {
+
+    // 初始化函数
+    function initialize() external {
+        // 可用于设置初始状态
+    }
+
+    // 创建订阅计划（仅合约所有者）
+    function createPlan(uint8 planId, uint256 price, uint256 duration) external {
+        require(msg.sender == owner, "Only owner");
+        planPrices[planId] = price;
+        planDuration[planId] = duration;
+    }
+
+    // 订阅计划
+    function subscribe(uint8 planId) external payable {
+        require(planPrices[planId] > 0, "Plan does not exist");
+        require(msg.value == planPrices[planId], "Incorrect ETH amount");
+
+        subscriptions[msg.sender] = Subscription({
+            planId: planId,
+            expiry: block.timestamp + planDuration[planId],
+            paused: false
+        });
+    }
+
+    // 检查用户是否处于有效订阅状态
+    function isSubscribed(address user) external view returns (bool) {
+        return subscriptions[user].expiry > block.timestamp;
+    }
+}
+
+// ==================== day17-SubscriptionLogicV2.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// 导入存储布局合约
+import "./day17-SubscriptionStorageLayout.sol";
+
+// SubscriptionLogicV2 - 订阅逻辑合约 V2
+// 这是 V1 的升级版本，新增了暂停订阅功能
+// 展示了可升级合约模式如何添加新功能而不丢失数据
+contract SubscriptionLogicV2 is SubscriptionStorageLayout {
+
+    // 创建订阅计划（仅合约所有者）
+    function createPlan(uint8 planId, uint256 price, uint256 duration) external {
+        require(msg.sender == owner, "Only owner");
+        planPrices[planId] = price;
+        planDuration[planId] = duration;
+    }
+
+    // 订阅计划
+    function subscribe(uint8 planId) external payable {
+        require(planPrices[planId] > 0, "Plan does not exist");
+        require(msg.value == planPrices[planId], "Incorrect ETH amount");
+
+        subscriptions[msg.sender] = Subscription({
+            planId: planId,
+            expiry: block.timestamp + planDuration[planId],
+            paused: false
+        });
+    }
+
+    // 暂停订阅（V2 新增功能）
+    function pauseSubscription() external {
+        Subscription storage sub = subscriptions[msg.sender];
+        require(sub.expiry > block.timestamp, "Subscription expired");
+        require(!sub.paused, "Already paused");
+
+        sub.paused = true;
+        // 计算并保存剩余时间
+        sub.expiry = sub.expiry - block.timestamp;
+    }
+
+    // 恢复订阅（V2 新增功能）
+    function resumeSubscription() external {
+        Subscription storage sub = subscriptions[msg.sender];
+        require(sub.paused, "Not paused");
+
+        sub.paused = false;
+        // 重新计算过期时间: 当前时间 + 之前保存的剩余时间
+        sub.expiry = block.timestamp + sub.expiry;
+    }
+
+    // 检查用户是否处于有效订阅状态（V2 更新）
+    function isSubscribed(address user) external view returns (bool) {
+         Subscription memory sub = subscriptions[user];
+         if (sub.paused) return false;
+         return sub.expiry > block.timestamp;
+    }
+}
+
+// ==================== 可升级合约架构说明 ====================
+//
+// 1. 代理合约（SubscriptionStorage）:
+//    - 存储所有数据（subscriptions, planPrices 等）
+//    - 持有用户的 ETH
+//    - 通过 delegatecall 将函数调用转发给逻辑合约
+//
+// 2. 逻辑合约（SubscriptionLogicV1/V2）:
+//    - 包含业务逻辑代码
+//    - 不存储数据（数据存储在代理合约中）
+//    - 可以被替换（升级）而不丢失数据
+//
+// 3. 升级流程:
+//    - 部署新的逻辑合约（如 V2）
+//    - 调用 upgradeTo() 更新 logicContract 地址
+//    - 所有后续调用都会使用新的逻辑
+//    - 数据保持不变
+//
+// 4. delegatecall 关键点:
+//    - 在代理合约的存储上下文中执行
+//    - msg.sender 保持为原始调用者
+//    - msg.value 保持不变`;
+    } else if (day === 18) {
+        return `// ==================== day18-MockWeatherOracle.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// Chainlink 预言机接口定义 - 直接内联，无需外部依赖
+interface AggregatorV3Interface {
+    function decimals() external view returns (uint8);
+    function description() external view returns (string memory);
+    function version() external view returns (uint256);
+    function getRoundData(uint80 _roundId) external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+    function latestRoundData() external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+}
+
+// 简单的所有权管理合约 - 直接内联，无需外部依赖
+contract Ownable {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor(address initialOwner) {
+        _transferOwnership(initialOwner);
+    }
+
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    function _checkOwner() internal view virtual {
+        require(owner() == msg.sender, "Ownable: caller is not the owner");
+    }
+
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+// MockWeatherOracle - 模拟天气预言机合约
+// 实现了 Chainlink 的 AggregatorV3Interface 接口
+// 用于开发和测试环境，模拟真实的天气数据预言机
+contract MockWeatherOracle is AggregatorV3Interface, Ownable {
+    uint8 private _decimals;
+    string private _description;
+    uint80 private _roundId;
+    uint256 private _timestamp;
+    uint256 private _lastUpdateBlock;
+
+    constructor() Ownable(msg.sender) {
+        _decimals = 0; // 降雨量以整毫米为单位
+        _description = "MOCK/RAINFALL/USD";
+        _roundId = 1;
+        _timestamp = block.timestamp;
+        _lastUpdateBlock = block.number;
+    }
+
+    function decimals() external view override returns (uint8) {
+        return _decimals;
+    }
+
+    function description() external view override returns (string memory) {
+        return _description;
+    }
+
+    function version() external pure override returns (uint256) {
+        return 1;
+    }
+
+    function getRoundData(uint80 _roundId_)
+        external
+        view
+        override
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+    {
+        return (_roundId_, _rainfall(), _timestamp, _timestamp, _roundId);
+    }
+
+    function latestRoundData()
+        external
+        view
+        override
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+    {
+        return (_roundId, _rainfall(), _timestamp, _timestamp, _roundId);
+    }
+
+    // 计算当前降雨量（内部函数）
+    // 使用区块信息生成伪随机数，模拟降雨量变化
+    function _rainfall() public view returns (int256) {
+        uint256 blocksSinceLastUpdate = block.number - _lastUpdateBlock;
+
+        uint256 randomFactor = uint256(keccak256(abi.encodePacked(
+            block.timestamp,
+            block.coinbase,
+            blocksSinceLastUpdate
+        ))) % 1000;
+
+        return int256(randomFactor);
+    }
+
+    function _updateRandomRainfall() private {
+        _roundId++;
+        _timestamp = block.timestamp;
+        _lastUpdateBlock = block.number;
+    }
+
+    function updateRandomRainfall() external {
+        _updateRandomRainfall();
+    }
+}
+
+// ==================== day18-CropInsurance.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// CropInsurance - 农作物保险合约（升级版）
+// 这是一个参数保险合约，使用 Chainlink 预言机获取降雨量和 ETH/USD 价格
+// 当降雨量低于阈值时，自动向投保农民赔付
+contract CropInsurance is Ownable {
+    // 天气预言机接口，用于获取降雨量数据
+    AggregatorV3Interface private weatherOracle;
+    // ETH/USD 价格预言机，用于将美元金额转换为 ETH
+    AggregatorV3Interface private ethUsdPriceFeed;
+
+    // 常量定义
+    uint256 public constant RAINFALL_THRESHOLD = 500;        // 降雨阈值（毫米）
+    uint256 public constant INSURANCE_PREMIUM_USD = 10;      // 保险保费（美元）
+    uint256 public constant INSURANCE_PAYOUT_USD = 50;       // 保险赔付金额（美元）
+
+    // 存储每个地址的投保状态
+    mapping(address => bool) public hasInsurance;
+    // 存储每个地址上次索赔的时间戳，用于限制索赔频率
+    mapping(address => uint256) public lastClaimTimestamp;
+
+    // 事件定义
+    event InsurancePurchased(address indexed farmer, uint256 amount);
+    event ClaimSubmitted(address indexed farmer);
+    event ClaimPaid(address indexed farmer, uint256 amount);
+    event RainfallChecked(address indexed farmer, uint256 rainfall);
+
+    // 构造函数
+    constructor(address _weatherOracle, address _ethUsdPriceFeed) payable Ownable(msg.sender) {
+        weatherOracle = AggregatorV3Interface(_weatherOracle);
+        ethUsdPriceFeed = AggregatorV3Interface(_ethUsdPriceFeed);
+    }
+
+    // 购买保险函数
+    // 农民支付保费购买保险，保费金额根据当前 ETH 价格动态计算
+    function purchaseInsurance() external payable {
+        uint256 ethPrice = getEthPrice();
+        // 价格转换公式: (USD金额 × 1e26) / ETH价格 = ETH数量（wei）
+        // 1e26 = 1e18(wei精度) × 1e8(Chainlink价格精度)
+        uint256 premiumInEth = (INSURANCE_PREMIUM_USD * 1e26) / ethPrice;
+
+        require(msg.value >= premiumInEth, "Insufficient premium amount");
+        require(!hasInsurance[msg.sender], "Already insured");
+
+        hasInsurance[msg.sender] = true;
+        emit InsurancePurchased(msg.sender, msg.value);
+    }
+
+    // 检查降雨量并索赔函数
+    // 农民调用此函数检查降雨量，如果低于阈值则自动获得赔付
+    function checkRainfallAndClaim() external {
+        require(hasInsurance[msg.sender], "No active insurance");
+        // 24小时冷却期限制
+        require(block.timestamp >= lastClaimTimestamp[msg.sender] + 1 days, "Must wait 24h between claims");
+
+        (
+            uint80 roundId,
+            int256 rainfall,
+            ,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = weatherOracle.latestRoundData();
+
+        require(updatedAt > 0, "Round not complete");
+        require(answeredInRound >= roundId, "Stale data");
+
+        uint256 currentRainfall = uint256(rainfall);
+        emit RainfallChecked(msg.sender, currentRainfall);
+
+        // 参数化赔付：自动检查条件并执行
+        if (currentRainfall < RAINFALL_THRESHOLD) {
+            lastClaimTimestamp[msg.sender] = block.timestamp;
+            emit ClaimSubmitted(msg.sender);
+
+            uint256 ethPrice = getEthPrice();
+            uint256 payoutInEth = (INSURANCE_PAYOUT_USD * 1e26) / ethPrice;
+
+            (bool success, ) = msg.sender.call{value: payoutInEth}("");
+            require(success, "Transfer failed");
+
+            emit ClaimPaid(msg.sender, payoutInEth);
+        }
+    }
+
+    // 获取 ETH/USD 价格函数
+    // 返回: ETH 价格（美元），精度为 8 位小数
+    function getEthPrice() public view returns (uint256) {
+        (, int256 price, , , ) = ethUsdPriceFeed.latestRoundData();
+        return uint256(price);
+    }
+
+    // 获取当前降雨量函数
+    function getCurrentRainfall() public view returns (uint256) {
+        (, int256 rainfall, , , ) = weatherOracle.latestRoundData();
+        return uint256(rainfall);
+    }
+
+    // 提取合约余额（仅合约所有者）
+    function withdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    // 接收 ETH 函数
+    receive() external payable {}
+
+    // 获取合约余额函数
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}
+
+// ==================== 预言机与参数保险架构说明 ====================
+//
+// 1. 双预言机设计:
+//    - Weather Oracle: 提供降雨量数据
+//    - ETH/USD PriceFeed: 提供价格数据用于货币转换
+//    - 两者都遵循 Chainlink 的 AggregatorV3Interface 标准
+//
+// 2. 价格转换机制:
+//    - Chainlink 价格预言机返回 8 位小数精度的价格
+//    - 公式: ETH数量 = (USD金额 × 1e26) / ETH价格
+//    - 1e26 = 1e18(wei精度) × 1e8(Chainlink精度)
+//
+// 3. 参数保险特点:
+//    - 自动触发：无需人工审核，条件满足自动赔付
+//    - 透明可信：使用预言机数据，避免争议
+//    - 高效低成本：无需理赔调查，降低运营成本
+//
+// 4. 冷却期机制:
+//    - 24小时内只能索赔一次
+//    - 防止滥用和频繁索赔
+//    - 使用 block.timestamp 记录时间`;
+    } else if (day === 19) {
+        return `// ==================== day19-SignThis.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract SignThis {
+    // 存储活动组织者地址
+    address public organizer;
+
+    // 记录用户是否已参加活动
+    mapping(address => bool) public hasEntered;
+
+    // 记录参与者列表
+    address[] public participants;
+
+    // 事件：用户参与活动
+    event UserEntered(address indexed user);
+
+    // 构造函数：设置组织者
+    constructor() {
+        organizer = msg.sender;
+    }
+
+    // 验证签名并记录参与者
+    function enter(bytes memory signature) external {
+        // 验证签名
+        require(_verifySignature(msg.sender, signature), "Invalid signature");
+
+        // 检查是否已参与（防止重入）
+        require(!hasEntered[msg.sender], "Already entered");
+
+        // 记录参与者
+        hasEntered[msg.sender] = true;
+        participants.push(msg.sender);
+
+        // 触发事件
+        emit UserEntered(msg.sender);
+    }
+
+    // 内部函数：验证签名
+    function _verifySignature(address user, bytes memory signature) internal view returns (bool) {
+        // 对用户地址进行哈希
+        bytes32 messageHash = keccak256(abi.encodePacked(user));
+
+        // 添加 EIP-191 前缀
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\\x19Ethereum Signed Message:\\n32", messageHash)
+        );
+
+        // 恢复签名者地址
+        (bytes32 r, bytes32 s, uint8 v) = _splitSignature(signature);
+        address recovered = ecrecover(ethSignedMessageHash, v, r, s);
+
+        // 验证签名者是否为组织者
+        return recovered == organizer;
+    }
+
+    // 拆分签名为 r, s, v 三个组件
+    function _splitSignature(bytes memory sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
+        require(sig.length == 65, "Invalid signature length");
+
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
+    }
+
+    // 获取参与者数量
+    function getParticipantCount() external view returns (uint256) {
+        return participants.length;
+    }
+
+    // 检查特定地址是否已参与
+    function checkEntered(address user) external view returns (bool) {
+        return hasEntered[user];
+    }
+}
+
+// ==================== 签名验证与无Gas空投说明 ====================
+//
+// 1. 签名验证原理:
+//    - 组织者使用私钥对用户地址进行签名
+//    - 用户调用合约时提供签名
+//    - 合约使用 ecrecover 恢复签名者地址
+//    - 验证恢复的地址是否为组织者
+//
+// 2. EIP-191 签名标准:
+//    - 目的：防止签名被误用于其他场景
+//    - 方法：在消息前添加 "\\x19Ethereum Signed Message:\\n32" 前缀
+//    - 效果：签名的消息与普通文本签名不同
+//
+// 3. 无 Gas 空投优势:
+//    - 用户无需持有 ETH 即可参与
+//    - 组织者承担 Gas 费用
+//    - 适用于代币空投、白名单、邀请奖励等场景
+//
+// 4. 安全考虑:
+//    - 使用 nonce 防止重放攻击（可扩展）
+//    - 验证签名长度
+//    - 使用 require 进行输入验证`;
+    } else if (day === 20) {
+        return `// ==================== day20-GoldVault.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// GoldVault - 金库合约
+// 演示重入攻击漏洞及其防护措施
+contract GoldVault {
+    // 存储每个用户的黄金（ETH）余额
+    mapping(address => uint256) public goldBalance;
+
+    // 重入锁状态变量
+    uint256 private _status;
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    // 构造函数 - 初始化重入锁状态
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    // 自定义 nonReentrant 修饰符 - 防止重入攻击
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "Reentrant call blocked");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+
+    // 存款函数
+    function deposit() external payable {
+        require(msg.value > 0, "Deposit must be more than 0");
+        goldBalance[msg.sender] += msg.value;
+    }
+
+    // 有漏洞的提款函数 - 演示重入攻击风险
+    function vulnerableWithdraw() external {
+        uint256 amount = goldBalance[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+
+        // 漏洞所在: 先发送ETH（外部调用）
+        (bool sent, ) = msg.sender.call{value: amount}("");
+        require(sent, "ETH transfer failed");
+
+        // 后更新余额 - 如果外部调用重入，余额还未更新！
+        goldBalance[msg.sender] = 0;
+    }
+
+    // 安全的提款函数 - 使用重入锁保护
+    function safeWithdraw() external nonReentrant {
+        // 1. Checks: 验证条件
+        uint256 amount = goldBalance[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+
+        // 2. Effects: 先更新状态
+        goldBalance[msg.sender] = 0;
+
+        // 3. Interactions: 最后进行外部调用
+        (bool sent, ) = msg.sender.call{value: amount}("");
+        require(sent, "ETH transfer failed");
+    }
+}
+
+// ==================== day20-GoldThief.sol ====================
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+interface IVault {
+    function deposit() external payable;
+    function vulnerableWithdraw() external;
+    function safeWithdraw() external;
+}
+
+// GoldThief - 重入攻击演示合约
+contract GoldThief {
+    IVault public targetVault;
+    address public owner;
+    uint public attackCount;
+    bool public attackingSafe;
+
+    constructor(address _vaultAddress) {
+        targetVault = IVault(_vaultAddress);
+        owner = msg.sender;
+    }
+
+    // 攻击有漏洞的金库
+    function attackVulnerable() external payable {
+        require(msg.sender == owner, "Only owner");
+        require(msg.value >= 1 ether, "Need at least 1 ETH");
+
+        attackingSafe = false;
+        attackCount = 0;
+
+        targetVault.deposit{value: msg.value}();
+        targetVault.vulnerableWithdraw();
+    }
+
+    // 攻击有防护的金库
+    function attackSafe() external payable {
+        require(msg.sender == owner, "Only owner");
+        require(msg.value >= 1 ether, "Need at least 1 ETH");
+
+        attackingSafe = true;
+        attackCount = 0;
+
+        targetVault.deposit{value: msg.value}();
+        targetVault.safeWithdraw();
+    }
+
+    // 接收函数 - 重入攻击的核心
+    receive() external payable {
+        attackCount++;
+
+        if (!attackingSafe && address(targetVault).balance >= 1 ether && attackCount < 5) {
+            targetVault.vulnerableWithdraw();
+        }
+
+        if (attackingSafe) {
+            targetVault.safeWithdraw();
+        }
+    }
+
+    // 提取窃取的 ETH
+    function stealLoot() external {
+        require(msg.sender == owner, "Only owner");
+        (bool success, ) = payable(owner).call{value: address(this).balance}("");
+        require(success, "ETH transfer failed");
+    }
+}
+
+// ==================== 安全最佳实践总结 ====================
+//
+// 1. Checks-Effects-Interactions 模式:
+//    - Checks: 首先验证所有条件（require）
+//    - Effects: 然后更新合约状态
+//    - Interactions: 最后进行外部调用
+//
+// 2. 重入锁（Reentrancy Guard）:
+//    - 使用布尔值或状态变量跟踪执行状态
+//    - 在函数执行期间锁定合约
+//
+// 3. 实际案例 - The DAO 攻击:
+//    - 2016年发生，损失360万ETH
+//    - 攻击者利用递归调用漏洞
+//    - 导致以太坊硬分叉（ETH/ETC）
+//
+// 4. 其他防护措施:
+//    - 使用 transfer 或 send（2300 gas限制）
+//    - 使用 pull 模式代替 push 模式
+//    - 限制单次提款金额
+//    - 进行专业的安全审计`;
+    } else if (day === 21) {
+        return `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// IERC721 - ERC721 标准接口
+// 定义了 NFT 合约必须实现的基本功能
+// 符合以太坊改进提案 EIP-721
+interface IERC721 {
+    // 事件定义
+    // 当代币被转移时触发
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    // 当代币授权给某个地址时触发
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    // 当设置或取消操作员授权时触发
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+
+    // 查询某个地址拥有的代币数量
+    function balanceOf(address owner) external view returns (uint256);
+    // 查询代币的所有者
+    function ownerOf(uint256 tokenId) external view returns (address);
+
+    // 授权某个地址操作特定代币
+    function approve(address to, uint256 tokenId) external;
+    // 查询代币被授权给的地址
+    function getApproved(uint256 tokenId) external view returns (address);
+
+    // 设置或取消操作员授权（授权操作员管理所有代币）
+    function setApprovalForAll(address operator, bool approved) external;
+    // 查询是否授权了操作员
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+    // 转移代币（需要授权）
+    function transferFrom(address from, address to, uint256 tokenId) external;
+    // 安全转移代币（检查接收方是否支持 ERC721）
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    // 带数据的安全转移
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+
+// IERC721Receiver - ERC721 代币接收接口
+// 合约必须实现此接口才能接收 ERC721 代币
+// 防止代币被意外发送到不支持 ERC721 的合约
+interface IERC721Receiver {
+    // 当合约接收到 ERC721 代币时调用
+    // 必须返回此函数的 selector（0x150b7a02）以确认接收
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
+}
+
+// SimpleNFT - 简化版 ERC721 NFT 合约
+// 实现了 ERC721 标准的基本功能
+// 包含铸造、转移、授权等核心功能
+contract SimpleNFT is IERC721 {
+    // NFT 名称
+    string public name;
+    // NFT 符号（代币标识）
+    string public symbol;
+
+    // 代币 ID 计数器，从 1 开始
+    uint256 private _tokenIdCounter = 1;
+
+    // 代币 ID 到所有者的映射
+    mapping(uint256 => address) private _owners;
+    // 所有者地址到代币数量的映射
+    mapping(address => uint256) private _balances;
+    // 代币 ID 到被授权地址的映射
+    mapping(uint256 => address) private _tokenApprovals;
+    // 所有者到操作员授权的映射（嵌套映射）
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
+    // 代币 ID 到元数据 URI 的映射
+    mapping(uint256 => string) private _tokenURIs;
+
+    // 构造函数 - 设置 NFT 名称和符号
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    // 查询地址拥有的代币数量
+    function balanceOf(address owner) public view override returns (uint256) {
+        require(owner != address(0), "Zero address");
+        return _balances[owner];
+    }
+
+    // 查询代币的所有者
+    function ownerOf(uint256 tokenId) public view override returns (address) {
+        address owner = _owners[tokenId];
+        require(owner != address(0), "Token doesn't exist");
+        return owner;
+    }
+
+    // 授权地址操作特定代币
+    function approve(address to, uint256 tokenId) public override {
+        address owner = ownerOf(tokenId);
+        require(to != owner, "Already owner");
+        // 验证调用者是代币所有者或已授权的操作员
+        require(msg.sender == owner || isApprovedForAll(owner, msg.sender), "Not authorized");
+
+        _tokenApprovals[tokenId] = to;
+        emit Approval(owner, to, tokenId);
+    }
+
+    // 查询代币被授权给的地址
+    function getApproved(uint256 tokenId) public view override returns (address) {
+        require(_owners[tokenId] != address(0), "Token doesn't exist");
+        return _tokenApprovals[tokenId];
+    }
+
+    // 设置或取消操作员授权
+    function setApprovalForAll(address operator, bool approved) public override {
+        require(operator != msg.sender, "Self approval");
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+
+    // 查询是否授权了操作员
+    function isApprovedForAll(address owner, address operator) public view override returns (bool) {
+        return _operatorApprovals[owner][operator];
+    }
+
+    // 转移代币（需要授权）
+    function transferFrom(address from, address to, uint256 tokenId) public override {
+        require(_isApprovedOrOwner(msg.sender, tokenId), "Not authorized");
+        _transfer(from, to, tokenId);
+    }
+
+    // 安全转移代币
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override {
+        safeTransferFrom(from, to, tokenId, "");
+    }
+
+    // 带数据的安全转移代币
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override {
+        require(_isApprovedOrOwner(msg.sender, tokenId), "Not authorized");
+        _safeTransfer(from, to, tokenId, data);
+    }
+
+    // 铸造新代币
+    // to: 接收者地址
+    // uri: 代币元数据 URI
+    function mint(address to, string memory uri) public {
+        uint256 tokenId = _tokenIdCounter;
+        _tokenIdCounter++;
+
+        // 设置代币所有者和余额
+        _owners[tokenId] = to;
+        _balances[to] += 1;
+        _tokenURIs[tokenId] = uri;
+
+        // 触发 Transfer 事件（from 为 0 地址表示铸造）
+        emit Transfer(address(0), to, tokenId);
+    }
+
+    // 查询代币的元数据 URI
+    function tokenURI(uint256 tokenId) public view returns (string memory) {
+        require(_owners[tokenId] != address(0), "Token doesn't exist");
+        return _tokenURIs[tokenId];
+    }
+
+    // 内部转移函数
+    function _transfer(address from, address to, uint256 tokenId) internal virtual {
+        require(ownerOf(tokenId) == from, "Not owner");
+        require(to != address(0), "Zero address");
+
+        // 清除授权
+        delete _tokenApprovals[tokenId];
+
+        // 更新余额
+        _balances[from] -= 1;
+        _balances[to] += 1;
+        _owners[tokenId] = to;
+
+        emit Transfer(from, to, tokenId);
+    }
+
+    // 内部安全转移函数
+    function _safeTransfer(address from, address to, uint256 tokenId, bytes memory data) internal virtual {
+        _transfer(from, to, tokenId);
+        // 检查接收方是否支持 ERC721
+        require(_checkOnERC721Received(from, to, tokenId, data), "Not ERC721Receiver");
+    }
+
+    // 检查调用者是否被授权操作代币
+    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
+        address owner = ownerOf(tokenId);
+        return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
+    }
+
+    // 检查接收方合约是否实现了 IERC721Receiver
+    function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) private returns (bool) {
+        // 检查 to 是否是合约地址
+        if (to.code.length > 0) {
+            try IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data) returns (bytes4 retval) {
+                // 验证返回值是否正确
+                return retval == IERC721Receiver.onERC721Received.selector;
+            } catch {
+                // 调用失败
+                return false;
+            }
+        }
+        // EOA（外部账户）总是可以接收
+        return true;
+    }
+}
+
+// ERC721 关键概念:
+//
+// 1. 代币标识:
+//    - 每个代币有唯一的 tokenId（uint256）
+//    - 从 0 地址铸造，转移到 0 地址销毁
+//
+// 2. 所有权管理:
+//    - _owners: tokenId => owner
+//    - _balances: owner => count
+//
+// 3. 授权机制:
+//    - 单代币授权: approve()
+//    - 操作员授权: setApprovalForAll()
+//
+// 4. 安全转移:
+//    - 检查接收方是否支持 ERC721
+//    - 防止代币被锁定在不支持的合约中
+//
+// 5. 元数据:
+//    - tokenURI() 返回代币的元数据链接
+//    - 通常指向 JSON 文件，包含名称、描述、图片等`;
     }
     return "";
 };

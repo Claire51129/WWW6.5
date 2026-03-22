@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-contract SimpleERC20 {
+contract Day12_SimpleERC20 {
     string public name = "simpleToken";
     string public symbol = "SIM";
     uint8 public decimals = 18;

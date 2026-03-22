@@ -9,8 +9,6 @@ contract PremiumDepositBox is BaseDepositBox {
 
     event MetadataUpdated(address indexed owner);
 
-    constructor(address initialOwner) BaseDepositBox(initialOwner) {}
-
     function getBoxType() external pure override returns (string memory) {
         return "Premium";
     }

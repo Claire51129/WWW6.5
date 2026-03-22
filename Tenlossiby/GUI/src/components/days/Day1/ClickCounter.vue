@@ -1,6 +1,6 @@
 <template>
-  <div class="day-1-content">
-    <div class="content-layout">
+  <div class="day-1-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <!-- 左侧：交互区域 -->
       <div class="left-column">
         <div class="interaction-area">
@@ -20,14 +20,17 @@
         </div>
       </div>
 
-      <!-- 右侧：知识面板（使用共享组件） -->
-      <KnowledgePanel
-        :current-day="1"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        @show-full-code="showFullCode = true"
-      />
+      <!-- 右侧：知识面板 -->
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="1"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          @show-full-code="showFullCode = true"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗（使用共享组件） -->
@@ -85,16 +88,7 @@ const showFullCode = ref(false)
   width: 100%;
 }
 
-.content-layout {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.left-column {
-  flex: 1;
-  min-width: 300px;
-}
+/* 布局样式已迁移到 day-common.css */
 
 .interaction-area {
   background: var(--bg-surface-1);
@@ -136,12 +130,6 @@ const showFullCode = ref(false)
 }
 
 @media (max-width: 768px) {
-  .content-layout {
-    flex-direction: column;
-  }
-
-  .left-column {
-    min-width: 100%;
-  }
+  /* 布局样式已迁移到 day-common.css */
 }
 </style>

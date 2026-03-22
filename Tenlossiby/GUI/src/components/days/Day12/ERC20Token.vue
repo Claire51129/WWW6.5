@@ -1,6 +1,6 @@
 <template>
-  <div class="day-12-content">
-    <div class="content-layout">
+  <div class="day-12-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <div class="left-column">
         <div class="interaction-area">
           <h3>🎮 交互操作</h3>
@@ -239,16 +239,18 @@
         </div>
       </div>
 
-      <!-- 右侧：知识面板（仅在解锁概念后显示） -->
-      <KnowledgePanel
-        v-if="unlockedConcepts.length > 0"
-        :current-day="12"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        :custom-hint="currentHint"
-        @show-full-code="handleShowFullCode"
-      />
+      <!-- 右侧：知识面板 -->
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="12"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          :custom-hint="currentHint"
+          @show-full-code="handleShowFullCode"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗 -->
@@ -458,23 +460,7 @@ const handleShowFullCode = () => {
   padding: 12px;
 }
 
-.content-layout {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.left-column {
-  flex: 1;
-  min-width: 0;
-}
-
-/* 当右侧栏存在时，左侧栏自动收缩 */
-.content-layout:has(> :nth-child(2)) .left-column {
-  flex: 0 0 65%;
-}
+/* 布局样式已移至全局CSS day-common.css */
 
 .interaction-area {
   background: var(--bg-surface-1);
@@ -884,12 +870,7 @@ const handleShowFullCode = () => {
   opacity: 0.7;
 }
 
-/* 响应式布局 */
-@media (max-width: 1024px) {
-  .content-layout {
-    grid-template-columns: 1fr;
-  }
-}
+/* 响应式布局已移至全局CSS */
 
 @media (max-width: 640px) {
   .token-details {

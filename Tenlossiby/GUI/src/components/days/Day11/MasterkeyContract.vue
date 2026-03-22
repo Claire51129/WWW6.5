@@ -1,6 +1,6 @@
 <template>
-  <div class="day-11-content">
-    <div class="content-layout">
+  <div class="day-11-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <div class="left-column">
         <div class="interaction-area">
           <h3>🎮 交互操作</h3>
@@ -145,13 +145,16 @@
       </div>
 
       <!-- 右侧：知识面板 -->
-      <KnowledgePanel
-        :current-day="11"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        @show-full-code="handleShowFullCode"
-      />
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="11"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          @show-full-code="handleShowFullCode"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗 -->
@@ -205,7 +208,7 @@ const message = ref('')
 const isError = ref(false)
 
 // 完整代码
-const fullCode = getFullCode(11)
+const fullCode = computed(() => getFullCode(11))
 
 // 已解锁概念
 const unlockedConcepts = computed(() => {

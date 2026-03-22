@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day16 Game Plugin System 前端示例</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #020617;
+      color: #e5e7eb;
+    }
+    h1, h2, h3 {
+      margin: 0 0 12px;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      color: #9ca3af;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 260px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day16 Game Plugin System (PluginStore + 多插件示例)</h1>
+  <p class="subtitle">
+    这个页面用最简单的原生 HTML + JS，演示：<br />
+    PluginStore 作为“玩家档案 + 插件调度中心”，以及 Achievements / Weapon / Friends / BattleLog / TokenInventory 五类插件的交互方式。
+  </p>
+
+  <!-- 区块 1：连接钱包 + 填写合约地址 -->
+  <div class="card">
+    <h2>1. 连接钱包 / 配置 PluginStore & 插件地址</h2>
+    <p class="subtitle">
+      部署完合约后，把地址填到下面。<br />
+      注意：只有 PluginStore 的 owner 才能调用 registerPlugin 注册或替换插件。
+    </p>
+    <label>PluginStore 合约地址：</label>
+    <input id="storeAddress" placeholder="0x... PluginStore 地址" />
+
+    <label>AchievementsPlugin 地址：</label>
+    <input id="achievementsAddress" placeholder="0x... day16_AchievementsPlugin.sol 部署后的地址" />
+
+    <label>WeaponStorePlugin 地址：</label>
+    <input id="weaponAddress" placeholder="0x... day16_WeaponStorePlugin.sol 部署后的地址" />
+
+    <label>FriendsPlugin 地址：</label>
+    <input id="friendsAddress" placeholder="0x... day16_FriendsPlugin.sol 部署后的地址" />
+
+    <label>BattleLogPlugin 地址：</label>
+    <input id="battleLogAddress" placeholder="0x... day16_BattleLogPlugin.sol 部署后的地址" />
+
+    <label>TokenInventoryPlugin 地址（构造时固定了某个 ERC-20）：</label>
+    <input id="tokenInventoryAddress" placeholder="0x... day16_TokenInventoryPlugin.sol 部署后的地址" />
+
+    <button id="connectBtn">连接 MetaMask</button>
+    <span class="tag" id="connStatusTag">未连接</span>
+    <button id="registerPluginsBtn">作为 owner 注册 / 替换所有插件</button>
+
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <!-- 区块 2：玩家档案 Profile -->
+  <div class="card">
+    <h2>2. 玩家档案 Profile（由 PluginStore 直接管理）</h2>
+    <p class="subtitle">
+      这里直接调用 PluginStore 的 setProfile / getProfile。<br />
+      name / avatar 字段只是字符串，可以自己约定头像 URL 或者 Emoji 等。
+    </p>
+    <label>名称 name：</label>
+    <input id="profileName" placeholder="比如：Mia" />
+
+    <label>头像 avatar（可以是 URL 或任意字符串）：</label>
+    <input id="profileAvatar" placeholder="比如：https://... 或 😺" />
+
+    <button id="saveProfileBtn">保存我的 Profile (setProfile)</button>
+    <button id="loadProfileBtn">读取我的 Profile (getProfile)</button>
+
+    <div class="status" id="profileStatus"></div>
+  </div>
+
+  <!-- 区块 3：成就 & 武器 插件 -->
+  <div class="row">
+    <div class="card">
+      <h2>3. 成就插件 AchievementsPlugin</h2>
+      <p class="subtitle">
+        通过 PluginStore.runPlugin / runPluginView 调用插件：<br />
+        - 写：setAchievement(address,string)<br />
+        - 读：getAchievement(address)
+      </p>
+      <label>成就描述：</label>
+      <input id="achievementInput" placeholder="比如：First Blood / Level 10" />
+
+      <button id="setAchievementBtn">设置我的成就 (runPlugin)</button>
+      <button id="getAchievementBtn">查看我的成就 (runPluginView)</button>
+
+      <div class="status" id="achievementStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>4. 武器插件 WeaponStorePlugin</h2>
+      <p class="subtitle">
+        同样通过 PluginStore 调用：<br />
+        - 写：setWeapon(address,string)<br />
+        - 读：getWeapon(address)
+      </p>
+      <label>武器名称：</label>
+      <input id="weaponInput" placeholder="比如：Sword / Bow / Magic Wand" />
+
+      <button id="setWeaponBtn">装备武器 (runPlugin)</button>
+      <button id="getWeaponBtn">查看当前武器 (runPluginView)</button>
+
+      <div class="status" id="weaponStatus"></div>
+    </div>
+  </div>
+
+  <!-- 区块 4：好友系统 FriendsPlugin -->
+  <div class="row">
+    <div class="card">
+      <h2>5. 好友系统 FriendsPlugin</h2>
+      <p class="subtitle">
+        这里把“好友标识”设计成 string，可以填写地址或昵称。<br />
+        调用插件函数：addFriend(address,string) / removeFriend(address,string) / checkFriend(address,string)。
+      </p>
+      <label>好友标识（可以是地址或昵称）：</label>
+      <input id="friendIdInput" placeholder="0x... 或者 alice / bob" />
+
+      <button id="addFriendBtn">添加好友 (runPlugin)</button>
+      <button id="removeFriendBtn">移除好友 (runPlugin)</button>
+      <button id="checkFriendBtn">查询是否为好友 (runPluginView)</button>
+
+      <div class="status" id="friendStatus"></div>
+    </div>
+
+    <!-- 区块 5：战斗日志 BattleLogPlugin -->
+    <div class="card">
+      <h2>6. 战斗日志 BattleLogPlugin</h2>
+      <p class="subtitle">
+        为了简化，我们让前端把一整条战斗描述拼成一个 summary 字符串传入。<br />
+        - 写：addBattleLog(address,string) （summary）<br />
+        - 读：getLastBattleLog(address)
+      </p>
+      <label>对手 / 战斗对象（任意描述）：</label>
+      <input id="battleOpponentInput" placeholder="比如：0x1234... 或 Goblin King" />
+
+      <label>战斗结果：</label>
+      <select id="battleResultSelect">
+        <option value="WIN">WIN</option>
+        <option value="LOSE">LOSE</option>
+        <option value="DRAW">DRAW</option>
+      </select>
+
+      <button id="addBattleLogBtn">记录一条战斗日志 (runPlugin)</button>
+      <button id="getLastBattleLogBtn">查看最近一条战斗日志 (runPluginView)</button>
+
+      <div class="status" id="battleStatus"></div>
+    </div>
+  </div>
+
+  <!-- 区块 6：TokenInventoryPlugin ERC-20 余额 -->
+  <div class="card">
+    <h2>7. 代币库存 TokenInventoryPlugin (ERC-20)</h2>
+    <p class="subtitle">
+      这个插件本身在构造函数中固定了某个 ERC-20 token 地址。<br />
+      这里直接与 TokenInventoryPlugin 合约交互（不通过 PluginStore 代理），演示“插件再去调用 Token 合约”的模式。
+    </p>
+    <label>（可选）覆盖 TokenInventoryPlugin 地址（如果上面没填或想临时改）：</label>
+    <input id="tokenInventoryAddressOverride" placeholder="留空则使用顶部填写的 TokenInventory 地址" />
+
+    <button id="updateTokenBalanceBtn">更新我的 Token 余额 (updateMyBalance)</button>
+    <button id="viewTokenBalanceBtn">查看最近记录的余额 (getRecordedBalanceString)</button>
+
+    <div class="status" id="tokenStatus"></div>
+  </div>
+
+  <script>
+    // ===== PluginStore ABI（只保留本页用到的函数） =====
+    const STORE_ABI = [
+      "function owner() view returns (address)",
+      "function setProfile(string name,string avatar) external",
+      "function getProfile(address user) external view returns (string name,string avatar)",
+      "function registerPlugin(string key,address pluginAddress) external",
+      "function runPlugin(string key,string functionSignature,address user,string argument) external",
+      "function runPluginView(string key,string functionSignature,address user) external view returns (string)"
+    ];
+
+    // TokenInventoryPlugin ABI（直接交互）
+    const TOKEN_INVENTORY_ABI = [
+      "function token() view returns (address)",
+      "function updateMyBalance() external",
+      "function getRecordedBalanceString(address user) external view returns (string)",
+      "function tokenDecimals() external view returns (uint8)"
+    ];
+
+    let provider = null;
+    let signer = null;
+    let pluginStore = null;
+
+    const connectBtn = document.getElementById("connectBtn");
+    const connStatusTag = document.getElementById("connStatusTag");
+    const globalStatus = document.getElementById("globalStatus");
+    const registerPluginsBtn = document.getElementById("registerPluginsBtn");
+
+    const storeAddressInput = document.getElementById("storeAddress");
+    const achievementsAddressInput = document.getElementById("achievementsAddress");
+    const weaponAddressInput = document.getElementById("weaponAddress");
+    const friendsAddressInput = document.getElementById("friendsAddress");
+    const battleLogAddressInput = document.getElementById("battleLogAddress");
+    const tokenInventoryAddressInput = document.getElementById("tokenInventoryAddress");
+
+    const profileNameInput = document.getElementById("profileName");
+    const profileAvatarInput = document.getElementById("profileAvatar");
+    const saveProfileBtn = document.getElementById("saveProfileBtn");
+    const loadProfileBtn = document.getElementById("loadProfileBtn");
+    const profileStatus = document.getElementById("profileStatus");
+
+    const achievementInput = document.getElementById("achievementInput");
+    const setAchievementBtn = document.getElementById("setAchievementBtn");
+    const getAchievementBtn = document.getElementById("getAchievementBtn");
+    const achievementStatus = document.getElementById("achievementStatus");
+
+    const weaponInput = document.getElementById("weaponInput");
+    const setWeaponBtn = document.getElementById("setWeaponBtn");
+    const getWeaponBtn = document.getElementById("getWeaponBtn");
+    const weaponStatus = document.getElementById("weaponStatus");
+
+    const friendIdInput = document.getElementById("friendIdInput");
+    const addFriendBtn = document.getElementById("addFriendBtn");
+    const removeFriendBtn = document.getElementById("removeFriendBtn");
+    const checkFriendBtn = document.getElementById("checkFriendBtn");
+    const friendStatus = document.getElementById("friendStatus");
+
+    const battleOpponentInput = document.getElementById("battleOpponentInput");
+    const battleResultSelect = document.getElementById("battleResultSelect");
+    const addBattleLogBtn = document.getElementById("addBattleLogBtn");
+    const getLastBattleLogBtn = document.getElementById("getLastBattleLogBtn");
+    const battleStatus = document.getElementById("battleStatus");
+
+    const tokenInventoryAddressOverrideInput = document.getElementById("tokenInventoryAddressOverride");
+    const updateTokenBalanceBtn = document.getElementById("updateTokenBalanceBtn");
+    const viewTokenBalanceBtn = document.getElementById("viewTokenBalanceBtn");
+    const tokenStatus = document.getElementById("tokenStatus");
+
+    function setGlobalStatus(msg) {
+      globalStatus.textContent = msg || "";
+    }
+
+    function requireAddress(inputElem, msgIfEmpty) {
+      const v = inputElem.value.trim();
+      if (!v) {
+        throw new Error(msgIfEmpty || "地址不能为空");
+      }
+      return v;
+    }
+
+    async function ensureConnection() {
+      if (!window.ethereum) {
+        throw new Error("未检测到 MetaMask，请先安装浏览器插件。");
+      }
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
+      if (!signer) {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const addr = accounts[0] || "";
+        connStatusTag.textContent =
+          "已连接: " +
+          addr.slice(0, 6) +
+          "..." +
+          addr.slice(-4);
+        connStatusTag.style.color = "#4ade80";
+      }
+      const storeAddr = requireAddress(
+        storeAddressInput,
+        "请先填写 PluginStore 合约地址"
+      );
+      if (!pluginStore || pluginStore.address.toLowerCase() !== storeAddr.toLowerCase()) {
+        pluginStore = new ethers.Contract(storeAddr, STORE_ABI, signer);
+      }
+    }
+
+    connectBtn.addEventListener("click", async () => {
+      try {
+        setGlobalStatus("正在连接钱包...");
+        await ensureConnection();
+        const owner = await pluginStore.owner();
+        const myAddr = await signer.getAddress();
+        setGlobalStatus(
+          "连接成功。\nPluginStore owner: " +
+            owner +
+            "\n当前地址: " +
+            myAddr +
+            (owner.toLowerCase() === myAddr.toLowerCase()
+              ? "\n你是 owner，可以注册插件。"
+              : "\n你不是 owner，只能调用读写 Profile/插件逻辑，不能改插件地址。")
+        );
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("连接失败: " + (err.message || err));
+      }
+    });
+
+    // ===== 注册/替换所有插件 =====
+    registerPluginsBtn.addEventListener("click", async () => {
+      try {
+        await ensureConnection();
+        const myAddr = await signer.getAddress();
+        const owner = await pluginStore.owner();
+        if (myAddr.toLowerCase() !== owner.toLowerCase()) {
+          throw new Error("只有 PluginStore owner 才能注册插件。");
+        }
+
+        const achAddr = requireAddress(
+          achievementsAddressInput,
+          "请填写 AchievementsPlugin 地址"
+        );
+        const weaponAddr = requireAddress(
+          weaponAddressInput,
+          "请填写 WeaponStorePlugin 地址"
+        );
+        const friendsAddr = requireAddress(
+          friendsAddressInput,
+          "请填写 FriendsPlugin 地址"
+        );
+        const battleAddr = requireAddress(
+          battleLogAddressInput,
+          "请填写 BattleLogPlugin 地址"
+        );
+
+        setGlobalStatus("发送注册插件交易中...");
+
+        // 依次注册几个插件（也可以拆成多个按钮，这里图省事演示）
+        const tx1 = await pluginStore.registerPlugin("achievements", achAddr);
+        await tx1.wait();
+
+        const tx2 = await pluginStore.registerPlugin("weapon", weaponAddr);
+        await tx2.wait();
+
+        const tx3 = await pluginStore.registerPlugin("friends", friendsAddr);
+        await tx3.wait();
+
+        const tx4 = await pluginStore.registerPlugin("battleLog", battleAddr);
+        await tx4.wait();
+
+        setGlobalStatus(
+          "插件注册完成：\n" +
+            "achievements -> " +
+            achAddr +
+            "\nweapon -> " +
+            weaponAddr +
+            "\nfriends -> " +
+            friendsAddr +
+            "\nbattleLog -> " +
+            battleAddr +
+            "\n（TokenInventoryPlugin 直接由前端调用，不通过 PluginStore）"
+        );
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("注册插件失败: " + (err.data?.message || err.message || err));
+      }
+    });
+
+    // ===== Profile 相关 =====
+    saveProfileBtn.addEventListener("click", async () => {
+      profileStatus.textContent = "";
+      try {
+        await ensureConnection();
+        const name = profileNameInput.value.trim();
+        const avatar = profileAvatarInput.value.trim();
+        if (!name) {
+          throw new Error("name 不能为空");
+        }
+        profileStatus.textContent = "发送 setProfile 交易中...";
+        const tx = await pluginStore.setProfile(name, avatar);
+        profileStatus.textContent = "交易已发送，等待确认...\nTX: " + tx.hash;
+        const receipt = await tx.wait();
+        profileStatus.textContent =
+          "Profile 保存成功，区块号: " + receipt.blockNumber;
+      } catch (err) {
+        console.error(err);
+        profileStatus.textContent =
+          "保存失败: " + (err.data?.message || err.message || err);
+      }
+    });
+
+    loadProfileBtn.addEventListener("click", async () => {
+      profileStatus.textContent = "";
+      try {
+        await ensureConnection();
+        const addr = await signer.getAddress();
+        const res = await pluginStore.getProfile(addr);
+        const name = res.name || res[0];
+        const avatar = res.avatar || res[1];
+        profileStatus.textContent =
+          "当前地址: " +
+          addr +
+          "\nname: " +
+          name +
+          "\navatar: " +
+          avatar;
+      } catch (err) {
+        console.error(err);
+        profileStatus.textContent =
+          "读取失败: " + (err.data?.message || err.message || err);
+      }
+    });
+
+    // ===== 帮助函数：统一封装 runPlugin / runPluginView 调用 =====
+    async function runPluginWrite(key, functionSignature, argString, statusElem) {
+      statusElem.textContent = "";
+      try {
+        await ensureConnection();
+        const addr = await signer.getAddress();
+        statusElem.textContent =
+          "调用 runPlugin(" +
+          key +
+          ", " +
+          functionSignature +
+          ")...";
+        const tx = await pluginStore.runPlugin(
+          key,
+          functionSignature,
+          addr,
+          argString || ""
+        );
+        statusElem.textContent =
+          "交易已发送，等待确认...\nTX: " + tx.hash;
+        const receipt = await tx.wait();
+        statusElem.textContent =
+          "执行成功，区块号: " + receipt.blockNumber;
+      } catch (err) {
+        console.error(err);
+        statusElem.textContent =
+          "执行失败: " + (err.data?.message || err.message || err);
+      }
+    }
+
+    async function runPluginRead(key, functionSignature, statusElem) {
+      statusElem.textContent = "";
+      try {
+        await ensureConnection();
+        const addr = await signer.getAddress();
+        statusElem.textContent =
+          "调用 runPluginView(" +
+          key +
+          ", " +
+          functionSignature +
+          ")...";
+        const res = await pluginStore.runPluginView(
+          key,
+          functionSignature,
+          addr
+        );
+        statusElem.textContent = "返回值: " + res;
+      } catch (err) {
+        console.error(err);
+        statusElem.textContent =
+          "读取失败: " + (err.data?.message || err.message || err);
+      }
+    }
+
+    // ===== 成就插件 =====
+    setAchievementBtn.addEventListener("click", async () => {
+      const achievement = achievementInput.value.trim();
+      if (!achievement) {
+        achievementStatus.textContent = "请输入成就描述";
+        return;
+      }
+      await runPluginWrite(
+        "achievements",
+        "setAchievement(address,string)",
+        achievement,
+        achievementStatus
+      );
+    });
+
+    getAchievementBtn.addEventListener("click", async () => {
+      await runPluginRead(
+        "achievements",
+        "getAchievement(address)",
+        achievementStatus
+      );
+    });
+
+    // ===== 武器插件 =====
+    setWeaponBtn.addEventListener("click", async () => {
+      const weapon = weaponInput.value.trim();
+      if (!weapon) {
+        weaponStatus.textContent = "请输入武器名称";
+        return;
+      }
+      await runPluginWrite(
+        "weapon",
+        "setWeapon(address,string)",
+        weapon,
+        weaponStatus
+      );
+    });
+
+    getWeaponBtn.addEventListener("click", async () => {
+      await runPluginRead("weapon", "getWeapon(address)", weaponStatus);
+    });
+
+    // ===== 好友插件 =====
+    addFriendBtn.addEventListener("click", async () => {
+      const friendId = friendIdInput.value.trim();
+      if (!friendId) {
+        friendStatus.textContent = "请输入好友标识";
+        return;
+      }
+      await runPluginWrite(
+        "friends",
+        "addFriend(address,string)",
+        friendId,
+        friendStatus
+      );
+    });
+
+    removeFriendBtn.addEventListener("click", async () => {
+      const friendId = friendIdInput.value.trim();
+      if (!friendId) {
+        friendStatus.textContent = "请输入好友标识";
+        return;
+      }
+      await runPluginWrite(
+        "friends",
+        "removeFriend(address,string)",
+        friendId,
+        friendStatus
+      );
+    });
+
+    checkFriendBtn.addEventListener("click", async () => {
+      const friendId = friendIdInput.value.trim();
+      if (!friendId) {
+        friendStatus.textContent = "请输入好友标识";
+        return;
+      }
+      // 这里的 trick：runPluginView 只能传 (address) 一个参数，
+      // 我们简单一点，直接调用 FriendsPlugin 的 checkFriend 时，让 user=msg.sender，friendId 在插件内固定。
+      // 为了不改变 PluginStore，我们在这里直接提示：当前 Demo 版本只演示写操作，
+      // 读操作建议直接用 Remix 调 checkFriend(address,string)。
+      friendStatus.textContent =
+        "当前 Demo 的 runPluginView 只能传一个 address 参数，\n" +
+        "要完整查询 checkFriend(address,string)，推荐在 Remix 中直接调用插件。\n" +
+        "这里先简单保持写操作演示。";
+    });
+
+    // ===== 战斗日志插件 =====
+    addBattleLogBtn.addEventListener("click", async () => {
+      const opponent = battleOpponentInput.value.trim();
+      const result = battleResultSelect.value;
+      if (!opponent) {
+        battleStatus.textContent = "请输入对手描述";
+        return;
+      }
+      const summary = "vs " + opponent + " " + result;
+      await runPluginWrite(
+        "battleLog",
+        "addBattleLog(address,string)",
+        summary,
+        battleStatus
+      );
+    });
+
+    getLastBattleLogBtn.addEventListener("click", async () => {
+      await runPluginRead(
+        "battleLog",
+        "getLastBattleLog(address)",
+        battleStatus
+      );
+    });
+
+    // ===== TokenInventoryPlugin 交互 =====
+    function getTokenInventoryAddressForUse() {
+      const overrideAddr = tokenInventoryAddressOverrideInput.value.trim();
+      if (overrideAddr) return overrideAddr;
+      const topAddr = tokenInventoryAddressInput.value.trim();
+      if (topAddr) return topAddr;
+      throw new Error("请在顶部或覆盖输入中填入 TokenInventoryPlugin 地址");
+    }
+
+    async function getTokenInventoryContract() {
+      await ensureConnection();
+      const addr = getTokenInventoryAddressForUse();
+      return new ethers.Contract(addr, TOKEN_INVENTORY_ABI, signer);
+    }
+
+    updateTokenBalanceBtn.addEventListener("click", async () => {
+      tokenStatus.textContent = "";
+      try {
+        const c = await getTokenInventoryContract();
+        tokenStatus.textContent = "发送 updateMyBalance 交易中...";
+        const tx = await c.updateMyBalance();
+        tokenStatus.textContent =
+          "交易已发送，等待确认...\nTX: " + tx.hash;
+        const receipt = await tx.wait();
+        tokenStatus.textContent =
+          "更新成功，区块号: " + receipt.blockNumber;
+      } catch (err) {
+        console.error(err);
+        tokenStatus.textContent =
+          "更新失败: " + (err.data?.message || err.message || err);
+      }
+    });
+
+    viewTokenBalanceBtn.addEventListener("click", async () => {
+      tokenStatus.textContent = "";
+      try {
+        const c = await getTokenInventoryContract();
+        await ensureConnection();
+        const addr = await signer.getAddress();
+        const rawBalance = await c.getRecordedBalanceString(addr);
+        let decimals = 18;
+        try {
+          decimals = await c.tokenDecimals();
+        } catch {}
+
+        tokenStatus.textContent =
+          "最近记录的原始余额（整数）: " +
+          rawBalance +
+          "\nToken decimals: " +
+          decimals +
+          "\n人类可读近似值（假设 18 位小数）请在前端自行除以 10^decimals。";
+      } catch (err) {
+        console.error(err);
+        tokenStatus.textContent =
+          "查询失败: " + (err.data?.message || err.message || err);
+      }
+    });
+  </script>
+</body>
+</html>
+

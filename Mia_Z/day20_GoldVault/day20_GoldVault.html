@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day20 GoldVault 重入教学面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    textarea {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 12px;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      min-height: 120px;
+      resize: vertical;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button.danger {
+      background: linear-gradient(to right, #f97316, #dc2626);
+      color: #fef2f2;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 280px;
+      margin-bottom: 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+      vertical-align: middle;
+    }
+    .tag.ok {
+      border-color: #22c55e;
+      color: #86efac;
+    }
+    .tag.warn {
+      border-color: #f59e0b;
+      color: #fcd34d;
+    }
+    .hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.55;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .intro-strong {
+      color: #cbd5e1;
+      margin-bottom: 10px;
+    }
+    ol.steps {
+      margin: 0;
+      padding-left: 1.25rem;
+      font-size: 13px;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+    ol.steps li {
+      margin-bottom: 6px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day20 GoldVault 重入教学面板</h1>
+
+  <div class="card">
+    <p class="intro-strong">
+      与 <code>day20_GoldVault.sol</code>、<code>day20_GoldThief.sol</code> 配套：<strong>重入（Reentrancy）</strong>指外部合约在收到 ETH 时通过
+      <code>receive</code>/<code>fallback</code> 再次调用你的函数。<code>call</code> 会把执行流交给对方，类似嵌入式里「回调 / 中断里又触发了同一条业务路径」。
+    </p>
+    <p class="hint">
+      <strong>CEI（Checks-Effects-Interactions）</strong>：先检查、再改合约状态（如把 <code>goldBalance</code> 清零）、最后再 <code>call</code> 转币。
+      <code>vulnerableWithdraw</code> 先转账再清零，映射里余额仍 &gt; 0，重入可再次提款。<code>safeWithdraw</code> 先清零再转账；重入时金额为 0，无法重复掏空。合约里还有 <code>nonReentrant</code> 互斥锁，可作纵深防御。
+    </p>
+    <p class="hint">
+      <code>call</code> 转发全部 gas，对方逻辑可任意执行；<code>transfer</code>/<code>send</code> 仅 2300 gas，仅够记一笔日志，教学里常用来降低重入面，但现代合约更推荐 CEI + 重入锁。
+    </p>
+    <p class="hint" style="margin-top:12px;padding:10px 12px;background:rgba(2,6,23,.6);border-radius:8px;border:1px solid #334155;">
+      <strong>演示要点：</strong>若金库里只有盗贼刚存入的「攻击押金」那一笔，第一次转出后合约可能已空，重入会失败。要看清多轮重入，需先用<strong>另一账户</strong>向 <code>GoldVault.deposit</code> 注入<strong>明显多于</strong>单笔攻击押金的 ETH，再让盗贼执行 <code>attackVulnerable</code>。链上门槛为 <code>GoldThief.MIN_ATTACK_WEI</code>（当前与前端一致为 0.01 ETH）。<code>attackCount &lt; 5</code> 为教学上限。
+    </p>
+    <p class="hint">
+      技术栈：原生 HTML + JS，ethers v6（CDN）。若浏览器直接打开文件时 RPC 报 CORS，可用 VS Code Live Server 或 <code>npx serve</code> 在本地起静态服务。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. 网络与合约地址</h2>
+    <label>链 ID（须与合约所在链、MetaMask 当前网络一致）</label>
+    <input id="chainId" type="text" placeholder="Sepolia 11155111；本地 Hardhat 常用 31337" value="11155111" />
+    <label>RPC URL（<strong>可选</strong>；留空则须先连接 MetaMask，只读走钱包节点）</label>
+    <input id="rpcUrl" type="text" placeholder="留空 = 使用已连接钱包的 RPC" />
+    <p class="hint" style="margin-top:0;">
+      公共 Sepolia 示例（可能限流）：<br />
+      <code>https://ethereum-sepolia.publicnode.com</code> · <code>https://rpc.sepolia.org</code><br />
+      更多见 <a href="https://chainlist.org" target="_blank" rel="noopener" style="color:#7dd3fc;">chainlist.org</a>。
+    </p>
+    <label><code>GoldVault</code> 合约地址</label>
+    <input id="vaultAddr" type="text" placeholder="0x..." />
+    <label><code>GoldThief</code> 合约地址（构造时绑定 Vault）</label>
+    <input id="thiefAddr" type="text" placeholder="0x..." />
+    <label>查询 <code>goldBalance</code> 的地址（留空则在已连接钱包时用当前账户）</label>
+    <input id="queryAddr" type="text" placeholder="留空 = 已连接地址" />
+    <div class="toolbar">
+      <button type="button" id="btnRead">读取链上数据</button>
+      <span class="tag" id="readTag">未读取</span>
+    </div>
+    <div class="status" id="readStatus"></div>
+    <label style="margin-top:10px">读取结果</label>
+    <textarea id="readOut" readonly placeholder="vault 余额、goldBalance、盗贼状态…"></textarea>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>2. 步骤教学（按顺序做）</h2>
+      <p class="hint" style="margin-top:0;"><strong>阶段 A — 部署</strong></p>
+      <ol class="steps">
+        <li>在 Remix / Hardhat 部署 <code>GoldVault</code>，再部署 <code>GoldThief</code>，构造参数填入 Vault 地址。</li>
+        <li>将 Vault、Thief 地址填入本节上方；链 ID 与 RPC 按实际网络填写。</li>
+      </ol>
+      <p class="hint"><strong>阶段 B — 注资（脆弱演示必做）</strong></p>
+      <ol class="steps" start="3">
+        <li>用<strong>账户 A</strong>连接钱包，向 Vault <code>deposit</code> 一定量 ETH（建议明显多于 0.01 ETH，例如 ≥ 0.05 ETH，便于观察多轮重入）。</li>
+        <li>点「读取链上数据」确认 <code>goldBalance</code> 与合约 ETH 余额。</li>
+      </ol>
+      <p class="hint"><strong>阶段 C — 脆弱提款与攻击</strong></p>
+      <ol class="steps" start="5">
+        <li>用<strong>盗贼 owner</strong>账户连接（即部署 <code>GoldThief</code> 的地址）。</li>
+        <li>在盗贼卡片发送 <code>attackVulnerable</code>，附带的 ETH ≥ 0.01（默认 0.01 ETH，须 ≥ 链上 <code>MIN_ATTACK_WEI</code>）。观察 <code>attackCount</code>、盗贼余额、Vault 余额变化。</li>
+        <li>需要时用 <code>stealLoot</code> 把盗贼合约内 ETH 取回 owner。</li>
+      </ol>
+      <p class="hint"><strong>阶段 D — 对比安全路径</strong></p>
+      <ol class="steps" start="8">
+        <li>可再次注资后，对<strong>同一盗贼</strong>调用 <code>attackSafe</code>（走 <code>safeWithdraw</code>）。结合源码说明：先清零再 <code>call</code>，重入无法重复提款；<code>nonReentrant</code> 为额外保险。</li>
+        <li>也可用普通账户自行尝试 <code>vulnerableWithdraw</code> / <code>safeWithdraw</code> 对比行为（须有 <code>goldBalance</code>）。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>3. 连接钱包</h2>
+      <div class="toolbar">
+        <button type="button" id="btnConnect">连接 MetaMask</button>
+        <span class="tag" id="connTag">未连接</span>
+      </div>
+      <div class="status" id="acct"></div>
+      <p class="hint">写入交易须连接。只读可仅用 RPC，或连接后将 RPC 留空走钱包节点。</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>4. GoldVault 操作</h2>
+      <p class="hint">使用当前连接账户作为 <code>msg.sender</code>。</p>
+      <label><code>deposit</code> 发送的 ETH 数量</label>
+      <input id="depositEth" type="text" placeholder="例如 0.1 或 1" value="0.1" />
+      <div class="toolbar">
+        <button type="button" id="btnDeposit">deposit</button>
+      </div>
+      <label style="margin-top:10px">提款（二选一）</label>
+      <div class="toolbar">
+        <button type="button" class="danger" id="btnVulnW">vulnerableWithdraw</button>
+        <button type="button" id="btnSafeW">safeWithdraw</button>
+      </div>
+      <div class="status" id="vaultTxStatus"></div>
+    </div>
+    <div class="card">
+      <h2>5. GoldThief 操作</h2>
+      <p class="hint">须由 <code>owner</code> 连接钱包。<code>attack*</code> 需附带 ≥ 0.01 ETH（与合约 <code>MIN_ATTACK_WEI</code> 一致）。</p>
+      <label>攻击交易附带的 ETH</label>
+      <input id="attackEth" type="text" placeholder="≥ 0.01" value="0.01" />
+      <div class="toolbar">
+        <button type="button" class="danger" id="btnAttackVuln">attackVulnerable</button>
+        <button type="button" id="btnAttackSafe">attackSafe</button>
+        <button type="button" class="secondary" id="btnSteal">stealLoot</button>
+      </div>
+      <div class="status" id="thiefTxStatus"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>6. 测试验收清单（自学对照）</h2>
+    <p class="hint" style="margin-top:0;">
+      部署：Vault 与 Thief 部署成功，Thief 的 <code>targetVault</code> 指向 Vault。<br />
+      注资：账户 A 向 Vault <code>deposit</code> 足额 ETH 后，再执行 <code>attackVulnerable</code>。<br />
+      预期：<code>attackCount</code> ≥ 2；盗贼合约 ETH 增加；Vault 总损失超过盗贼「公平份额」时可定性为重入放大。<br />
+      <code>stealLoot</code>：owner 取回盗贼合约余额。<br />
+      <code>attackSafe</code>：不应出现与脆弱路径相同的多轮掏空；结合「先 Effects 再 Interactions」讲解。
+    </p>
+  </div>
+
+  <script>
+    const VAULT_ABI = [
+      "function deposit() payable",
+      "function vulnerableWithdraw()",
+      "function safeWithdraw()",
+      "function goldBalance(address) view returns (uint256)",
+    ];
+
+    const THIEF_ABI = [
+      "function MIN_ATTACK_WEI() view returns (uint256)",
+      "function attackVulnerable() payable",
+      "function attackSafe() payable",
+      "function stealLoot()",
+      "function getBalance() view returns (uint256)",
+      "function attackCount() view returns (uint256)",
+      "function attackingSafe() view returns (bool)",
+      "function owner() view returns (address)",
+      "function targetVault() view returns (address)",
+    ];
+
+    /** 须与链上 GoldThief.MIN_ATTACK_WEI 一致（改合约后请同步此处并重新部署） */
+    const MIN_ATTACK_ETH = "0.01";
+
+    let provider;
+    let signer;
+
+    const $ = (id) => document.getElementById(id);
+
+    function setReadTag(text, variant) {
+      const el = $("readTag");
+      el.textContent = text;
+      el.className = "tag" + (variant ? " " + variant : "");
+    }
+
+    function setConnTag(text, variant) {
+      const el = $("connTag");
+      el.textContent = text;
+      el.className = "tag" + (variant ? " " + variant : "");
+    }
+
+    function resolveReadProvider() {
+      const rpc = $("rpcUrl").value.trim();
+      if (rpc) {
+        return new ethers.JsonRpcProvider(rpc);
+      }
+      if (provider) {
+        return provider;
+      }
+      return null;
+    }
+
+    async function resolveQueryAddress() {
+      const q = $("queryAddr").value.trim();
+      if (q) {
+        if (!ethers.isAddress(q)) return { error: "查询地址不是合法 0x 地址。" };
+        return { addr: q };
+      }
+      if (signer) {
+        const addr = await signer.getAddress();
+        return { addr };
+      }
+      return { error: "请填写查询地址，或先连接 MetaMask。" };
+    }
+
+    $("btnRead").onclick = async () => {
+      $("readStatus").textContent = "";
+      $("readOut").value = "";
+      setReadTag("读取中…", "");
+      const rp = resolveReadProvider();
+      const va = $("vaultAddr").value.trim();
+      const ta = $("thiefAddr").value.trim();
+      if (!rp) {
+        setReadTag("未读取", "");
+        $("readStatus").textContent =
+          "请填写 RPC URL，或先连接 MetaMask 后将 RPC 留空。";
+        return;
+      }
+      if (!ethers.isAddress(va) || !ethers.isAddress(ta)) {
+        setReadTag("未读取", "");
+        $("readStatus").textContent = "Vault 与 Thief 地址须为合法 0x 地址。";
+        return;
+      }
+      const qres = await resolveQueryAddress();
+      if (qres.error) {
+        setReadTag("未读取", "");
+        $("readStatus").textContent = qres.error;
+        return;
+      }
+      const who = qres.addr;
+      try {
+        const vault = new ethers.Contract(va, VAULT_ABI, rp);
+        const thief = new ethers.Contract(ta, THIEF_ABI, rp);
+        const [balVault, gold, tOwner, tVault, count, safeMode, thiefBal, chainMinWei] =
+          await Promise.all([
+            rp.getBalance(va),
+            vault.goldBalance(who),
+            thief.owner(),
+            thief.targetVault(),
+            thief.attackCount(),
+            thief.attackingSafe(),
+            thief.getBalance(),
+            thief.MIN_ATTACK_WEI(),
+          ]);
+        const tv = tVault.toString().toLowerCase();
+        const vv = va.toLowerCase();
+        const vaultLinkOk = tv === vv;
+        const pageMinWei = ethers.parseEther(MIN_ATTACK_ETH);
+        const minMatch = chainMinWei === pageMinWei;
+        $("readOut").value =
+          `查询地址 goldBalance: ${ethers.formatEther(gold)} ETH\n` +
+          `GoldVault 合约 ETH 余额: ${ethers.formatEther(balVault)} ETH\n\n` +
+          `GoldThief.MIN_ATTACK_WEI (链上): ${ethers.formatEther(chainMinWei)} ETH\n` +
+          `页面 MIN_ATTACK_ETH: ${MIN_ATTACK_ETH} ETH（须与链上一致）\n\n` +
+          `GoldThief.owner: ${tOwner}\n` +
+          `GoldThief.targetVault: ${tVault}\n` +
+          `与当前 Vault 地址一致: ${vaultLinkOk}\n` +
+          `attackCount: ${count.toString()}\n` +
+          `attackingSafe: ${safeMode}\n` +
+          `GoldThief 合约 ETH (getBalance): ${ethers.formatEther(thiefBal)} ETH`;
+        let msg = vaultLinkOk ? "读取成功。" : "警告: Thief.targetVault 与填写的 Vault 地址不一致，请检查部署与输入。";
+        if (!minMatch) {
+          msg +=
+            " 另：链上 MIN_ATTACK_WEI 与页面常量不一致，请同步修改 HTML 中的 MIN_ATTACK_ETH 或重新部署配套合约。";
+        }
+        $("readStatus").textContent = msg;
+        setReadTag(
+          vaultLinkOk && minMatch ? "已同步" : "请核对",
+          vaultLinkOk && minMatch ? "ok" : "warn"
+        );
+      } catch (e) {
+        setReadTag("失败", "warn");
+        $("readStatus").textContent = "读取失败: " + (e.shortMessage || e.message || e);
+      }
+    };
+
+    $("btnConnect").onclick = async () => {
+      $("acct").textContent = "";
+      setConnTag("连接中…", "");
+      if (!window.ethereum) {
+        setConnTag("无注入", "warn");
+        $("acct").textContent = "未检测到 window.ethereum（请安装 MetaMask）。";
+        return;
+      }
+      const want = $("chainId").value.trim();
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      if (want) {
+        const idHex = "0x" + BigInt(want).toString(16);
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: idHex }],
+          });
+        } catch (e) {
+          setConnTag("网络错误", "warn");
+          $("acct").textContent = "切换网络失败: " + (e.message || e);
+          return;
+        }
+      }
+      signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+      setConnTag("已连接", "ok");
+      $("acct").textContent = "当前账户: " + addr;
+    };
+
+    function vaultTxErr(msg) {
+      $("vaultTxStatus").textContent = msg;
+    }
+
+    $("btnDeposit").onclick = async () => {
+      $("vaultTxStatus").textContent = "";
+      if (!signer) {
+        vaultTxErr("请先连接 MetaMask。");
+        return;
+      }
+      const va = $("vaultAddr").value.trim();
+      if (!ethers.isAddress(va)) {
+        vaultTxErr("请填写合法 Vault 地址。");
+        return;
+      }
+      let value;
+      try {
+        value = ethers.parseEther($("depositEth").value.trim() || "0");
+      } catch {
+        vaultTxErr("deposit 数量无法解析为 ETH。");
+        return;
+      }
+      if (value <= 0n) {
+        vaultTxErr("deposit 须大于 0。");
+        return;
+      }
+      try {
+        const c = new ethers.Contract(va, VAULT_ABI, signer);
+        $("vaultTxStatus").textContent = "发送 deposit…";
+        const tx = await c.deposit({ value });
+        $("vaultTxStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        $("vaultTxStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        vaultTxErr("失败: " + (e.shortMessage || e.message || e));
+      }
+    };
+
+    $("btnVulnW").onclick = async () => {
+      $("vaultTxStatus").textContent = "";
+      if (!signer) {
+        vaultTxErr("请先连接 MetaMask。");
+        return;
+      }
+      const va = $("vaultAddr").value.trim();
+      if (!ethers.isAddress(va)) {
+        vaultTxErr("请填写合法 Vault 地址。");
+        return;
+      }
+      try {
+        const c = new ethers.Contract(va, VAULT_ABI, signer);
+        $("vaultTxStatus").textContent = "发送 vulnerableWithdraw…";
+        const tx = await c.vulnerableWithdraw();
+        $("vaultTxStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        $("vaultTxStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        vaultTxErr("失败: " + (e.shortMessage || e.message || e));
+      }
+    };
+
+    $("btnSafeW").onclick = async () => {
+      $("vaultTxStatus").textContent = "";
+      if (!signer) {
+        vaultTxErr("请先连接 MetaMask。");
+        return;
+      }
+      const va = $("vaultAddr").value.trim();
+      if (!ethers.isAddress(va)) {
+        vaultTxErr("请填写合法 Vault 地址。");
+        return;
+      }
+      try {
+        const c = new ethers.Contract(va, VAULT_ABI, signer);
+        $("vaultTxStatus").textContent = "发送 safeWithdraw…";
+        const tx = await c.safeWithdraw();
+        $("vaultTxStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        $("vaultTxStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        vaultTxErr("失败: " + (e.shortMessage || e.message || e));
+      }
+    };
+
+    function thiefTxErr(msg) {
+      $("thiefTxStatus").textContent = msg;
+    }
+
+    $("btnAttackVuln").onclick = async () => {
+      $("thiefTxStatus").textContent = "";
+      if (!signer) {
+        thiefTxErr("请先连接 MetaMask。");
+        return;
+      }
+      const ta = $("thiefAddr").value.trim();
+      if (!ethers.isAddress(ta)) {
+        thiefTxErr("请填写合法 Thief 地址。");
+        return;
+      }
+      let value;
+      try {
+        value = ethers.parseEther($("attackEth").value.trim() || "0");
+      } catch {
+        thiefTxErr("攻击附带 ETH 无法解析。");
+        return;
+      }
+      const minW = ethers.parseEther(MIN_ATTACK_ETH);
+      if (value < minW) {
+        thiefTxErr("attackVulnerable 须附带 ≥ " + MIN_ATTACK_ETH + " ETH。");
+        return;
+      }
+      try {
+        const c = new ethers.Contract(ta, THIEF_ABI, signer);
+        $("thiefTxStatus").textContent = "发送 attackVulnerable…";
+        const tx = await c.attackVulnerable({ value });
+        $("thiefTxStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        $("thiefTxStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        thiefTxErr("失败: " + (e.shortMessage || e.message || e));
+      }
+    };
+
+    $("btnAttackSafe").onclick = async () => {
+      $("thiefTxStatus").textContent = "";
+      if (!signer) {
+        thiefTxErr("请先连接 MetaMask。");
+        return;
+      }
+      const ta = $("thiefAddr").value.trim();
+      if (!ethers.isAddress(ta)) {
+        thiefTxErr("请填写合法 Thief 地址。");
+        return;
+      }
+      let value;
+      try {
+        value = ethers.parseEther($("attackEth").value.trim() || "0");
+      } catch {
+        thiefTxErr("攻击附带 ETH 无法解析。");
+        return;
+      }
+      const minW = ethers.parseEther(MIN_ATTACK_ETH);
+      if (value < minW) {
+        thiefTxErr("attackSafe 须附带 ≥ " + MIN_ATTACK_ETH + " ETH。");
+        return;
+      }
+      try {
+        const c = new ethers.Contract(ta, THIEF_ABI, signer);
+        $("thiefTxStatus").textContent = "发送 attackSafe…";
+        const tx = await c.attackSafe({ value });
+        $("thiefTxStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        $("thiefTxStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        thiefTxErr("失败: " + (e.shortMessage || e.message || e));
+      }
+    };
+
+    $("btnSteal").onclick = async () => {
+      $("thiefTxStatus").textContent = "";
+      if (!signer) {
+        thiefTxErr("请先连接 MetaMask。");
+        return;
+      }
+      const ta = $("thiefAddr").value.trim();
+      if (!ethers.isAddress(ta)) {
+        thiefTxErr("请填写合法 Thief 地址。");
+        return;
+      }
+      try {
+        const c = new ethers.Contract(ta, THIEF_ABI, signer);
+        $("thiefTxStatus").textContent = "发送 stealLoot…";
+        const tx = await c.stealLoot();
+        $("thiefTxStatus").textContent = "已广播: " + tx.hash;
+        const rec = await tx.wait();
+        $("thiefTxStatus").textContent = "成功，区块: " + rec.blockNumber + "\n" + tx.hash;
+      } catch (e) {
+        thiefTxErr("失败: " + (e.shortMessage || e.message || e));
+      }
+    };
+  </script>
+</body>
+</html>

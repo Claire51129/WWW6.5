@@ -1,6 +1,6 @@
 <template>
-  <div class="day-3-content">
-    <div class="content-layout">
+  <div class="day-3-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <!-- 左侧：交互区域 -->
       <div class="left-column">
         <div class="interaction-area">
@@ -36,14 +36,17 @@
         </div>
       </div>
 
-      <!-- 右侧：知识面板（使用共享组件） -->
-      <KnowledgePanel
-        :current-day="3"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        @show-full-code="showFullCode = true"
-      />
+      <!-- 右侧：知识面板 -->
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="3"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          @show-full-code="showFullCode = true"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗（使用共享组件） -->
@@ -57,8 +60,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useDay3 } from '@/composables/useDay3'
+import { getFullCode } from '@/data/days'
 import KnowledgePanel from '@/components/shared/KnowledgePanel.vue'
 import FullCodeModal from '@/components/shared/FullCodeModal.vue'
 
@@ -73,53 +77,7 @@ const {
 } = useDay3()
 
 // 完整代码
-const fullCode = `// SPDX-License-Identifier: MIT
-
-// 声明Solidity版本，要求编译器版本在0.8.0或更高（但低于0.9.0）
-pragma solidity ^0.8.0;
-
-// 定义一个名为PollStation的合约，用于投票站功能
-contract PollStation{
-
-    // 声明一个公共的字符串数组，用于存储所有候选人的姓名
-    // [] 表示这是一个数组类型
-    // public 关键字会自动生成getter函数
-    string[] public candidateNames;
-
-    // 声明一个映射（mapping），用于存储每个候选人获得的票数
-    // 映射结构：mapping(键类型 => 值类型)
-    // 这里用候选人的姓名（字符串）作为键，对应的票数（uint256）作为值
-    mapping(string => uint256) voteCount;
-
-    // 定义一个函数，用于添加候选人到投票站
-    function addCandidateNames(string memory _candidateNames) public{
-        // 将候选人姓名添加到数组末尾（push方法）
-        candidateNames.push(_candidateNames);
-
-        // 在映射中初始化该候选人的票数为0
-        voteCount[_candidateNames] = 0;
-    }
-
-    // 定义一个函数，用于获取所有候选人的姓名列表
-    function getcandidateNames() public view returns (string[] memory){
-        // 返回候选人姓名数组
-        return candidateNames;
-    }
-
-    // 定义一个函数，用于给指定候选人投票
-    function vote(string memory _candidateNames) public{
-        // 将指定候选人的票数加1
-        // += 是复合赋值运算符，等同于 voteCount[_candidateNames] = voteCount[_candidateNames] + 1
-        voteCount[_candidateNames] += 1;
-    }
-
-    // 定义一个函数，用于获取指定候选人获得的票数
-    function getVote(string memory _candidateNames) public view returns (uint256){
-        // 返回指定候选人的票数
-        return voteCount[_candidateNames];
-    }
-
-}`
+const fullCode = computed(() => getFullCode(3))
 
 // 是否显示完整代码弹窗
 const showFullCode = ref(false)
@@ -144,74 +102,7 @@ const handleVoteCandidate = (candidate) => {
 </script>
 
 <style scoped>
-/* 继承主样式文件中的样式 */
-.day-3-content {
-  width: 100%;
-}
-
-.content-layout {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.left-column {
-  flex: 1;
-  min-width: 300px;
-}
-
-.interaction-area {
-  background: var(--bg-surface-1);
-  padding: 20px;
-  border-radius: 8px;
-  border: 2px solid var(--border-main);
-  margin-bottom: 20px;
-}
-
-.interaction-area h3 {
-  margin-top: 0;
-  color: var(--accent-yellow);
-}
-
-.interaction-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.input-group {
-  margin-bottom: 10px;
-}
-
-.input-group label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text-main);
-  font-weight: 500;
-}
-
-.input-group input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border-main);
-  border-radius: 6px;
-  background: var(--bg-base);
-  color: var(--text-main);
-  font-size: 1em;
-  box-sizing: border-box;
-}
-
-.input-group input:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.1);
-}
-
-.interaction-controls .day-action-btn {
-  width: 100%;
-}
-
+/* Day 3 特有样式 */
 .candidates-list {
   background: var(--bg-surface-1);
   padding: 20px;

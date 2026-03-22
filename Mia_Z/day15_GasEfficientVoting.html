@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day15 GasEfficientVoting 前端示例</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- 这里只用最简单的原生 HTML + JS，不用任何前端框架（React/Vue 等）。
+       仅引入 ethers.js 作为 Web3 工具库，方便和合约交互。 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 260px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day15 GasEfficientVoting 合约前端 (原生 HTML + JS)</h1>
+  <p style="font-size:14px;color:#9ca3af;">
+    主要用于练习 Solidity / 智能合约，这里只做最小可用的交互页面，不涉及任何前端框架。
+  </p>
+
+  <div class="card">
+    <h2>1. 连接钱包 / 配置合约</h2>
+    <label>合约地址 (部署后填入)：</label>
+    <input id="contractAddress" placeholder="0x... 合约地址" />
+    <button id="connectBtn">连接 MetaMask</button>
+    <span class="tag" id="connStatusTag">未连接</span>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>2. 创建提案 (createProposal)</h2>
+      <label>提案名称 (字符串，将在前端转换成 bytes32)：</label>
+      <input id="proposalName" placeholder="比如：Increase Budget" />
+
+      <label>投票持续时间（秒）：</label>
+      <input id="proposalDuration" type="number" value="300" />
+
+      <button id="createBtn">创建提案</button>
+      <div class="status" id="createStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>3. 投票 (vote)</h2>
+      <label>提案 ID (uint8)：</label>
+      <input id="voteProposalId" type="number" min="0" />
+
+      <button id="voteBtn">对该提案投票</button>
+      <div class="status" id="voteStatus"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>4. 查询提案信息 (getProposal)</h2>
+      <label>提案 ID (uint8)：</label>
+      <input id="queryProposalId" type="number" min="0" />
+
+      <button id="queryBtn">查询提案</button>
+      <div class="status" id="queryStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>5. 查询是否已投票 (hasVoted)</h2>
+      <label>地址 (留空则默认当前连接的钱包)：</label>
+      <input id="checkAddress" placeholder="0x... (可选)" />
+
+      <label>提案 ID (uint8)：</label>
+      <input id="checkProposalId" type="number" min="0" />
+
+      <button id="checkBtn">查询是否已投票</button>
+      <div class="status" id="checkStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    // ==== 合约 ABI，仅保留需要用到的函数 ====
+    const CONTRACT_ABI = [
+      "function proposalCount() view returns (uint8)",
+      "function proposals(uint8) view returns (bytes32 name,uint32 voteCount,uint32 startTime,uint32 endTime,bool executed)",
+      "function proposalVoterCount(uint8) view returns (uint32)",
+      "function createProposal(bytes32 name,uint32 duration) external",
+      "function vote(uint8 proposalId) external",
+      "function executeProposal(uint8 proposalId) external",
+      "function hasVoted(address voter,uint8 proposalId) external view returns (bool)",
+      "function getProposal(uint8 proposalId) external view returns (bytes32,uint32,uint32,uint32,bool,bool)"
+    ];
+
+    let provider = null;
+    let signer = null;
+    let contract = null;
+
+    const connectBtn = document.getElementById("connectBtn");
+    const connStatusTag = document.getElementById("connStatusTag");
+    const globalStatus = document.getElementById("globalStatus");
+
+    const contractAddressInput = document.getElementById("contractAddress");
+
+    const createBtn = document.getElementById("createBtn");
+    const createStatus = document.getElementById("createStatus");
+
+    const voteBtn = document.getElementById("voteBtn");
+    const voteStatus = document.getElementById("voteStatus");
+
+    const queryBtn = document.getElementById("queryBtn");
+    const queryStatus = document.getElementById("queryStatus");
+
+    const checkBtn = document.getElementById("checkBtn");
+    const checkStatus = document.getElementById("checkStatus");
+
+    function setGlobalStatus(msg) {
+      globalStatus.textContent = msg || "";
+    }
+
+    function requireContractAddress() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) {
+        throw new Error("请先在顶部输入合约地址（部署后复制）。");
+      }
+      return addr;
+    }
+
+    async function ensureConnection() {
+      if (!window.ethereum) {
+        throw new Error("未检测到 MetaMask，请先安装浏览器插件。");
+      }
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
+      if (!signer) {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        connStatusTag.textContent = "已连接: " + (accounts[0] || "").slice(0, 6) + "..." + (accounts[0] || "").slice(-4);
+        connStatusTag.style.color = "#4ade80";
+      }
+      const addr = requireContractAddress();
+      if (!contract || contract.address.toLowerCase() !== addr.toLowerCase()) {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+      }
+    }
+
+    connectBtn.addEventListener("click", async () => {
+      try {
+        setGlobalStatus("正在连接钱包...");
+        await ensureConnection();
+        setGlobalStatus("钱包连接成功，可以开始与合约交互。");
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("连接失败: " + (err.message || err));
+      }
+    });
+
+    // ==== 前端帮助函数：string -> bytes32 ====
+    function stringToBytes32(str) {
+      const bytes = new TextEncoder().encode(str);
+      if (bytes.length > 32) {
+        throw new Error("字符串太长，转换为 bytes32 需要 <= 32 字节。");
+      }
+      const padded = new Uint8Array(32);
+      padded.set(bytes);
+      return "0x" + Array.from(padded).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    // ==== 创建提案 ====
+    createBtn.addEventListener("click", async () => {
+      createStatus.textContent = "";
+      try {
+        await ensureConnection();
+        const nameStr = document.getElementById("proposalName").value.trim();
+        const durationSec = Number(document.getElementById("proposalDuration").value || "0");
+        if (!nameStr) {
+          throw new Error("请输入提案名称。");
+        }
+        if (!durationSec || durationSec <= 0) {
+          throw new Error("持续时间必须 > 0 秒。");
+        }
+        const nameBytes32 = stringToBytes32(nameStr);
+        createStatus.textContent = "发送交易中...";
+        const tx = await contract.createProposal(nameBytes32, durationSec);
+        createStatus.textContent = "交易已发送，等待确认中...\nTX: " + tx.hash;
+        const receipt = await tx.wait();
+        createStatus.textContent = "交易已确认，区块号: " + receipt.blockNumber;
+
+        try {
+          const count = await contract.proposalCount();
+          const lastId = count - 1;
+          createStatus.textContent += "\n当前 proposalCount = " + count.toString() +
+            "，最新提案 ID 可能是: " + lastId.toString();
+        } catch {}
+      } catch (err) {
+        console.error(err);
+        createStatus.textContent = "创建失败: " + (err.data?.message || err.message || err);
+      }
+    });
+
+    // ==== 投票 ====
+    voteBtn.addEventListener("click", async () => {
+      voteStatus.textContent = "";
+      try {
+        await ensureConnection();
+        const id = Number(document.getElementById("voteProposalId").value || "0");
+        if (Number.isNaN(id)) {
+          throw new Error("请输入合法的提案 ID。");
+        }
+        voteStatus.textContent = "发送投票交易中...";
+        const tx = await contract.vote(id);
+        voteStatus.textContent = "交易已发送，等待确认...\nTX: " + tx.hash;
+        const receipt = await tx.wait();
+        voteStatus.textContent = "投票成功！区块号: " + receipt.blockNumber;
+      } catch (err) {
+        console.error(err);
+        voteStatus.textContent = "投票失败: " + (err.data?.message || err.message || err);
+      }
+    });
+
+    // ==== 查询提案信息 ====
+    queryBtn.addEventListener("click", async () => {
+      queryStatus.textContent = "";
+      try {
+        await ensureConnection();
+        const id = Number(document.getElementById("queryProposalId").value || "0");
+        if (Number.isNaN(id)) {
+          throw new Error("请输入合法的提案 ID。");
+        }
+        const result = await contract.getProposal(id);
+        // getProposal 返回: (bytes32 name,uint32 voteCount,uint32 startTime,uint32 endTime,bool executed,bool active)
+        const [nameBytes32, voteCount, startTime, endTime, executed, active] = result;
+
+        // 将 bytes32 转回字符串（简单处理，去掉尾部 0）
+        const hex = nameBytes32.toString();
+        let nameStr = "";
+        if (hex && hex.startsWith("0x")) {
+          const bytes = new Uint8Array(hex.length / 2 - 1);
+          for (let i = 2, j = 0; i < hex.length; i += 2, j++) {
+            bytes[j] = parseInt(hex.slice(i, i + 2), 16);
+          }
+          const zeroIndex = bytes.indexOf(0);
+          const view = zeroIndex === -1 ? bytes : bytes.slice(0, zeroIndex);
+          nameStr = new TextDecoder().decode(view);
+        }
+
+        const start = new Date(Number(startTime) * 1000);
+        const end = new Date(Number(endTime) * 1000);
+
+        queryStatus.textContent =
+          "名称(bytes32): " + nameBytes32 + "\n" +
+          "名称(解码后): " + nameStr + "\n" +
+          "票数: " + voteCount.toString() + "\n" +
+          "开始时间: " + start.toLocaleString() + "\n" +
+          "结束时间: " + end.toLocaleString() + "\n" +
+          "是否已执行: " + executed + "\n" +
+          "当前是否处于投票期(active): " + active;
+      } catch (err) {
+        console.error(err);
+        queryStatus.textContent = "查询失败: " + (err.data?.message || err.message || err);
+      }
+    });
+
+    // ==== 查询是否已投票 ====
+    checkBtn.addEventListener("click", async () => {
+      checkStatus.textContent = "";
+      try {
+        await ensureConnection();
+        const addrInput = document.getElementById("checkAddress").value.trim();
+        const id = Number(document.getElementById("checkProposalId").value || "0");
+        if (Number.isNaN(id)) {
+          throw new Error("请输入合法的提案 ID。");
+        }
+
+        let addr = addrInput;
+        if (!addr) {
+          addr = await signer.getAddress();
+        }
+
+        const voted = await contract.hasVoted(addr, id);
+        checkStatus.textContent =
+          "地址: " + addr + "\n" +
+          "提案 ID: " + id + "\n" +
+          "是否已投票: " + voted;
+      } catch (err) {
+        console.error(err);
+        checkStatus.textContent = "查询失败: " + (err.data?.message || err.message || err);
+      }
+    });
+  </script>
+</body>
+</html>
+

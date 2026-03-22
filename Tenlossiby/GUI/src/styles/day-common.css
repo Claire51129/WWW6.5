@@ -1,0 +1,305 @@
+/* ============================================
+   Day 组件通用样式
+   所有 Day 组件统一使用这些样式类
+   ============================================ */
+
+/* ========== 标准双栏布局 ========== */
+.day-content {
+  padding: 12px;
+}
+
+.content-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 16px;
+  align-items: flex-start;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* 使用更高的优先级确保单栏样式生效 */
+.day-content .content-layout.single-column {
+  grid-template-columns: 1fr !important;
+}
+
+/* 隐藏单栏模式下的右栏 */
+.day-content .content-layout.single-column .right-column,
+.content-layout.single-column .right-column {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.left-column {
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.content-layout.single-column .left-column {
+  padding-right: 0;
+}
+
+.right-column {
+  min-width: 0;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+/* 响应式：小屏幕单栏 */
+@media (max-width: 768px) {
+  .content-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .right-column {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* ========== 交互区域 ========== */
+.interaction-area {
+  background: var(--bg-surface-1);
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid var(--border-main);
+}
+
+.interaction-area h3 {
+  margin: 0 0 12px 0;
+  color: var(--text-main);
+  font-size: 1.25rem;
+  border-bottom: 2px solid var(--accent-blue);
+  padding-bottom: 8px;
+}
+
+/* ========== 功能区块 ========== */
+.function-block {
+  background: var(--bg-base);
+  border: 1px solid var(--border-main);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.function-block:last-child {
+  margin-bottom: 0;
+}
+
+.block-title {
+  margin: 0 0 12px 0;
+  color: var(--text-main);
+  font-size: 1rem;
+  border-bottom: 1px solid var(--border-main);
+  padding-bottom: 8px;
+}
+
+.function-signature {
+  display: block;
+  background: var(--bg-surface-2);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+  border-left: 3px solid var(--accent-blue);
+  line-height: 1.4;
+}
+
+/* ========== 输入组 ========== */
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.input-group label {
+  min-width: 80px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.input-group input,
+.input-group select,
+.input-group textarea {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-main);
+  border-radius: 6px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.input-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+/* ========== 统一消息提示 Toast（从下方弹出） ========== */
+.message-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  z-index: 1000;
+  animation: toastSlideUp 0.3s ease;
+  background: #10b981;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-toast.error {
+  background: #ef4444;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ========== 统一按钮样式 ========== */
+.day-action-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.day-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.day-action-btn:active {
+  transform: translateY(0);
+}
+
+.day-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.day-action-btn.small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.day-action-btn.full-width {
+  width: 100%;
+}
+
+/* 按钮颜色变体 */
+.day-action-btn.blue {
+  background: var(--accent-blue);
+}
+.day-action-btn.blue:hover {
+  background: #2563eb;
+}
+
+.day-action-btn.green {
+  background: var(--accent-green);
+}
+.day-action-btn.green:hover {
+  background: #059669;
+}
+
+.day-action-btn.cyan {
+  background: #06b6d4;
+}
+.day-action-btn.cyan:hover {
+  background: #0891b2;
+}
+
+.day-action-btn.yellow {
+  background: #eab308;
+}
+.day-action-btn.yellow:hover {
+  background: #ca8a04;
+}
+
+.day-action-btn.orange {
+  background: #f97316;
+}
+.day-action-btn.orange:hover {
+  background: #ea580c;
+}
+
+.day-action-btn.red {
+  background: #ef4444;
+}
+.day-action-btn.red:hover {
+  background: #dc2626;
+}
+
+.day-action-btn.purple {
+  background: #a855f7;
+}
+.day-action-btn.purple:hover {
+  background: #9333ea;
+}
+
+.day-action-btn.magenta {
+  background: #d946ef;
+}
+.day-action-btn.magenta:hover {
+  background: #c026d3;
+}
+
+.day-action-btn.gray {
+  background: #6b7280;
+}
+.day-action-btn.gray:hover {
+  background: #4b5563;
+}
+
+/* ========== 响应式辅助 ========== */
+@media (max-width: 768px) {
+  .day-content {
+    padding: 8px;
+  }
+
+  .interaction-area {
+    padding: 12px;
+  }
+
+  .function-block {
+    padding: 12px;
+  }
+
+  .input-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .input-group label {
+    min-width: 80px;
+  }
+
+  .day-action-btn {
+    width: 100%;
+  }
+}

@@ -1,6 +1,6 @@
 <template>
-  <div class="day-10-content">
-    <div class="content-layout">
+  <div class="day-10-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <div class="left-column">
         <!-- 状态指示器 -->
         <div class="status-indicator">
@@ -248,13 +248,16 @@
       </div>
 
       <!-- 右侧：知识面板 -->
-      <KnowledgePanel
-        :current-day="10"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        @show-full-code="showFullCode = true"
-      />
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="10"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          @show-full-code="showFullCode = true"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗 -->
@@ -301,7 +304,7 @@ const {
 } = useDay10()
 
 // 完整代码
-const fullCode = getFullCode(10)
+const fullCode = computed(() => getFullCode(10))
 
 // 弹窗状态
 const showFullCode = ref(false)

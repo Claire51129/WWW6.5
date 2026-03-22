@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day17 可升级订阅代理 — 教学面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 { margin: 0 0 12px; }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .row > .card { flex: 1 1 280px; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+    }
+    .hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.55;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day17 可升级订阅 — 代理合约教学面板</h1>
+  <div class="card hint" style="margin-bottom:16px;color:#cbd5e1;">
+    <strong>本仓库的 Day17 是哪一种「代理」？</strong><br />
+    代码里是<strong>手写极简代理</strong>：<code>SubscriptionStorage</code> 保存状态 + <code>fallback</code> 里 <code>delegatecall</code> 到 <code>logicContract</code>，owner 用 <code>upgradeTo</code> 换实现地址。<br />
+    这与 OpenZeppelin 的 <strong>透明代理（Transparent）</strong> 或 <strong>UUPS</strong> 不同——后两者有标准化存储槽、Admin、或把升级逻辑放在实现里等约定。<br />
+    <strong>若以后用官方插件做真实项目：</strong>入门更常选 <strong>UUPS</strong>（逻辑更集中、用户调用路径相对简单）；透明代理适合要严格区分「管理员/用户调用路由」的团队场景。本课用极简代理，是为了文件少、一眼看清 <code>delegatecall</code>。
+  </div>
+
+  <div class="card">
+    <h2>1. 连接钱包 — 始终对「代理」地址发交易</h2>
+    <label><code>SubscriptionStorage</code> 代理地址（部署后粘贴）：</label>
+    <input id="proxyAddress" placeholder="0x... 代理合约" />
+    <button id="connectBtn">连接 MetaMask</button>
+    <button class="secondary" type="button" id="refreshBtn">刷新链上状态</button>
+    <span class="tag" id="connTag">未连接</span>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>2. 代理元数据</h2>
+      <div class="status" id="metaStatus">连接后刷新。</div>
+    </div>
+    <div class="card">
+      <h2>3. 查询套餐 / 订阅</h2>
+      <label>planId：</label>
+      <input id="qPlanId" type="number" min="0" value="0" />
+      <button class="secondary" type="button" id="queryPlanBtn">读 planPrices / planDuration</button>
+      <div class="status" id="planStatus"></div>
+      <label style="margin-top:10px;">查订阅（地址，留空=当前钱包）：</label>
+      <input id="subAddr" placeholder="0x..." />
+      <button class="secondary" type="button" id="querySubBtn">读 subscriptions</button>
+      <button class="secondary" type="button" id="queryActiveBtn">isActive</button>
+      <div class="status" id="subStatus"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>4. addPlan（当前指向的逻辑合约）</h2>
+      <p class="hint">课内逻辑未加 <code>onlyOwner</code>，任何人可改套餐——仅作演示。</p>
+      <label>planId</label>
+      <input id="apPlanId" type="number" min="0" value="1" />
+      <label>price（wei）</label>
+      <input id="apPrice" type="text" value="1000000000000000" />
+      <label>duration（秒）</label>
+      <input id="apDuration" type="number" value="86400" />
+      <button id="addPlanBtn">addPlan</button>
+      <div class="status" id="addPlanStatus"></div>
+    </div>
+    <div class="card">
+      <h2>5. subscribe</h2>
+      <label>planId</label>
+      <input id="subPlanId" type="number" min="0" value="1" />
+      <label>发送 ETH（wei）</label>
+      <input id="subValue" type="text" value="1000000000000000" />
+      <button id="subscribeBtn">subscribe</button>
+      <div class="status" id="subscribeStatus"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>6. 升级到 V2 后：pause / resume</h2>
+      <p class="hint">若当前 <code>logicContract</code> 仍是 V1，调用会回滚（无此函数）。</p>
+      <label>目标用户地址</label>
+      <input id="pauseUser" placeholder="0x..." />
+      <button id="pauseBtn">pauseAccount</button>
+      <button id="resumeBtn">resumeAccount</button>
+      <div class="status" id="pauseStatus"></div>
+    </div>
+    <div class="card">
+      <h2>7. owner：upgradeTo</h2>
+      <label>新逻辑合约地址（如已部署的 <code>SubscriptionLogicV2</code>）</label>
+      <input id="newLogic" placeholder="0x..." />
+      <button id="upgradeBtn">upgradeTo</button>
+      <div class="status" id="upgradeStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 所有读写都针对「代理」地址；ABI = 布局 getter + upgradeTo + 逻辑（以 V2 为准）。
+     */
+    const PROXY_ABI = [
+      "function logicContract() view returns (address)",
+      "function owner() view returns (address)",
+      "function subscriptions(address) view returns (uint8 planId, uint256 expiry, bool paused)",
+      "function planPrices(uint8) view returns (uint256)",
+      "function planDuration(uint8) view returns (uint256)",
+      "function upgradeTo(address _newLogic) external",
+      "function addPlan(uint8 planId, uint256 price, uint256 duration) external",
+      "function subscribe(uint8 planId) external payable",
+      "function isActive(address user) external view returns (bool)",
+      "function pauseAccount(address user) external",
+      "function resumeAccount(address user) external"
+    ];
+
+    let provider = null;
+    let signer = null;
+    let proxy = null;
+
+    const proxyInput = document.getElementById("proxyAddress");
+    const connectBtn = document.getElementById("connectBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const connTag = document.getElementById("connTag");
+    const globalStatus = document.getElementById("globalStatus");
+    const metaStatus = document.getElementById("metaStatus");
+
+    function setGlobal(msg) {
+      globalStatus.textContent = msg || "";
+    }
+
+    function requireProxy() {
+      const a = proxyInput.value.trim();
+      if (!a) throw new Error("请填写代理合约地址。");
+      return a;
+    }
+
+    async function ensureSigner() {
+      if (!window.ethereum) throw new Error("需要 MetaMask。");
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      if (!signer) {
+        const acc = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const u = acc[0] || "";
+        connTag.textContent = u ? "已连接 " + u.slice(0, 6) + "…" + u.slice(-4) : "已连接";
+        connTag.style.color = "#4ade80";
+      }
+      const addr = requireProxy();
+      if (!proxy || proxy.address.toLowerCase() !== addr.toLowerCase()) {
+        proxy = new ethers.Contract(addr, PROXY_ABI, signer);
+      }
+    }
+
+    function readContract() {
+      const addr = requireProxy();
+      if (!window.ethereum) throw new Error("需要 MetaMask。");
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      return new ethers.Contract(addr, PROXY_ABI, provider);
+    }
+
+    async function refreshMeta() {
+      metaStatus.textContent = "读取中…";
+      try {
+        const c = signer ? proxy : readContract();
+        const [logic, ownerAddr] = await Promise.all([c.logicContract(), c.owner()]);
+        metaStatus.textContent =
+          "owner: " + ownerAddr + "\n" +
+          "logicContract（当前实现）: " + logic + "\n" +
+          "说明：业务调用发到代理地址，由 fallback delegatecall 到上述实现。";
+      } catch (e) {
+        console.error(e);
+        metaStatus.textContent = "读取失败: " + (e.message || e);
+      }
+    }
+
+    connectBtn.addEventListener("click", async () => {
+      try {
+        setGlobal("连接中…");
+        await ensureSigner();
+        setGlobal("已连接。");
+        await refreshMeta();
+      } catch (e) {
+        console.error(e);
+        setGlobal("失败: " + (e.message || e));
+      }
+    });
+
+    refreshBtn.addEventListener("click", async () => {
+      try {
+        requireProxy();
+        if (!window.ethereum) throw new Error("需要 MetaMask。");
+        if (signer) await ensureSigner();
+        else {
+          if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+          proxy = new ethers.Contract(requireProxy(), PROXY_ABI, provider);
+        }
+        await refreshMeta();
+        setGlobal("已刷新。");
+      } catch (e) {
+        console.error(e);
+        setGlobal("刷新失败: " + (e.message || e));
+      }
+    });
+
+    document.getElementById("queryPlanBtn").addEventListener("click", async () => {
+      const el = document.getElementById("planStatus");
+      el.textContent = "";
+      try {
+        const c = readContract();
+        const id = Number(document.getElementById("qPlanId").value || "0");
+        const [p, d] = await Promise.all([c.planPrices(id), c.planDuration(id)]);
+        el.textContent = "planId " + id + "\nprice: " + p.toString() + " wei\nduration: " + d.toString() + " 秒";
+      } catch (e) {
+        el.textContent = "失败: " + (e.message || e);
+      }
+    });
+
+    async function resolveUserAddr() {
+      let a = document.getElementById("subAddr").value.trim();
+      if (!a) {
+        if (!signer) await ensureSigner();
+        a = await signer.getAddress();
+      }
+      return a;
+    }
+
+    document.getElementById("querySubBtn").addEventListener("click", async () => {
+      const el = document.getElementById("subStatus");
+      el.textContent = "";
+      try {
+        const c = readContract();
+        const user = await resolveUserAddr();
+        const sub = await c.subscriptions(user);
+        const planId = sub.planId != null ? sub.planId : sub[0];
+        const expiryBn = sub.expiry != null ? sub.expiry : sub[1];
+        const paused = sub.paused != null ? sub.paused : sub[2];
+        const expBn = ethers.BigNumber.from(expiryBn);
+        const exp = expBn.isZero() ? "0（无）" : new Date(Number(expBn.toString()) * 1000).toLocaleString();
+        el.textContent =
+          "地址: " + user + "\n" +
+          "planId: " + planId + "\n" +
+          "expiry: " + expBn.toString() + " → " + exp + "\n" +
+          "paused: " + paused;
+      } catch (e) {
+        el.textContent = "失败: " + (e.message || e);
+      }
+    });
+
+    document.getElementById("queryActiveBtn").addEventListener("click", async () => {
+      const el = document.getElementById("subStatus");
+      el.textContent = "";
+      try {
+        const c = readContract();
+        const user = await resolveUserAddr();
+        const active = await c.isActive(user);
+        el.textContent = "isActive(" + user + ") = " + active;
+      } catch (e) {
+        el.textContent = "失败: " + (e.message || e);
+      }
+    });
+
+    document.getElementById("addPlanBtn").addEventListener("click", async () => {
+      const el = document.getElementById("addPlanStatus");
+      el.textContent = "";
+      try {
+        await ensureSigner();
+        const planId = Number(document.getElementById("apPlanId").value || "0");
+        const price = document.getElementById("apPrice").value.trim();
+        const dur = Number(document.getElementById("apDuration").value || "0");
+        el.textContent = "发送 addPlan…";
+        const tx = await proxy.addPlan(planId, price, dur);
+        el.textContent += "\nTX: " + tx.hash;
+        await tx.wait();
+        el.textContent += "\n已确认";
+        await refreshMeta();
+      } catch (e) {
+        el.textContent = "失败: " + (e.data?.message || e.message || e);
+      }
+    });
+
+    document.getElementById("subscribeBtn").addEventListener("click", async () => {
+      const el = document.getElementById("subscribeStatus");
+      el.textContent = "";
+      try {
+        await ensureSigner();
+        const planId = Number(document.getElementById("subPlanId").value || "0");
+        const val = document.getElementById("subValue").value.trim();
+        el.textContent = "发送 subscribe…";
+        const tx = await proxy.subscribe(planId, { value: val });
+        el.textContent += "\nTX: " + tx.hash;
+        await tx.wait();
+        el.textContent += "\n已确认";
+        await refreshMeta();
+      } catch (e) {
+        el.textContent = "失败: " + (e.data?.message || e.message || e);
+      }
+    });
+
+    document.getElementById("pauseBtn").addEventListener("click", async () => {
+      const el = document.getElementById("pauseStatus");
+      el.textContent = "";
+      try {
+        await ensureSigner();
+        const user = document.getElementById("pauseUser").value.trim();
+        if (!user) throw new Error("填写目标地址");
+        el.textContent = "pauseAccount…";
+        const tx = await proxy.pauseAccount(user);
+        el.textContent += "\nTX: " + tx.hash;
+        await tx.wait();
+        el.textContent += "\n已确认";
+      } catch (e) {
+        el.textContent = "失败: " + (e.data?.message || e.message || e);
+      }
+    });
+
+    document.getElementById("resumeBtn").addEventListener("click", async () => {
+      const el = document.getElementById("pauseStatus");
+      el.textContent = "";
+      try {
+        await ensureSigner();
+        const user = document.getElementById("pauseUser").value.trim();
+        if (!user) throw new Error("填写目标地址");
+        el.textContent = "resumeAccount…";
+        const tx = await proxy.resumeAccount(user);
+        el.textContent += "\nTX: " + tx.hash;
+        await tx.wait();
+        el.textContent += "\n已确认";
+      } catch (e) {
+        el.textContent = "失败: " + (e.data?.message || e.message || e);
+      }
+    });
+
+    document.getElementById("upgradeBtn").addEventListener("click", async () => {
+      const el = document.getElementById("upgradeStatus");
+      el.textContent = "";
+      try {
+        await ensureSigner();
+        const next = document.getElementById("newLogic").value.trim();
+        if (!next) throw new Error("填写新逻辑合约地址");
+        el.textContent = "upgradeTo…";
+        const tx = await proxy.upgradeTo(next);
+        el.textContent += "\nTX: " + tx.hash;
+        await tx.wait();
+        el.textContent += "\n已确认";
+        await refreshMeta();
+      } catch (e) {
+        el.textContent = "失败: " + (e.data?.message || e.message || e);
+      }
+    });
+  </script>
+</body>
+</html>

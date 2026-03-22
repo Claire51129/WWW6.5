@@ -1,7 +1,7 @@
 <!-- ClickCounter.vue - 集成实时数据的版本 -->
 <template>
-  <div class="day-1-content">
-    <div class="content-layout">
+  <div class="day-1-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <!-- 左侧：交互区域 -->
       <div class="left-column">
         <div class="interaction-area">
@@ -22,14 +22,17 @@
       </div>
 
       <!-- 右侧：知识面板（传入 realtimeData）-->
-      <KnowledgePanel
-        :current-day="1"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        :realtime-data="realtimeData"
-        @show-full-code="showFullCode = true"
-      />
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="1"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          :realtime-data="realtimeData"
+          @show-full-code="showFullCode = true"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗（使用共享组件） -->
@@ -43,8 +46,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useDay1 } from '@/composables/useDay1'  // 使用扩展版的 composable
+import { getFullCode } from '@/data/days'
 import KnowledgePanel from '@/components/shared/KnowledgePanel.vue'
 import FullCodeModal from '@/components/shared/FullCodeModal.vue'
 
@@ -59,58 +63,14 @@ const {
 } = useDay1()
 
 // 完整代码
-const fullCode = `//SPDx-License-Identifier:MIT
-
-pragma solidity ^0.8.0;
-
-contract clickcounter{
-    uint256 public counter;
-
-    function click() public {
-        counter++;
-    }
-}`
+const fullCode = computed(() => getFullCode(1))
 
 // 是否显示完整代码弹窗
 const showFullCode = ref(false)
 </script>
 
 <style scoped>
-/* 继承主样式文件中的样式 */
-.day-1-content {
-  width: 100%;
-}
-
-.content-layout {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.left-column {
-  flex: 1;
-  min-width: 300px;
-}
-
-.interaction-area {
-  background: var(--bg-surface-1);
-  padding: 20px;
-  border-radius: 8px;
-  border: 2px solid var(--border-main);
-}
-
-.interaction-area h3 {
-  margin-top: 0;
-  color: var(--accent-yellow);
-}
-
-.interaction-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 15px;
-}
-
+/* Day 1 特有样式 */
 .result-display {
   margin-top: 20px;
   padding: 15px;
@@ -129,15 +89,5 @@ const showFullCode = ref(false)
   font-weight: bold;
   color: var(--accent-yellow);
   text-align: center;
-}
-
-@media (max-width: 768px) {
-  .content-layout {
-    flex-direction: column;
-  }
-
-  .left-column {
-    min-width: 100%;
-  }
 }
 </style>

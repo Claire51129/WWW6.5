@@ -5,7 +5,7 @@ import "./day14_BaseDepositBox.sol";
 contract TimeLockedDepositBox is BaseDepositBox {
 
     uint256 private unlockTime;
-    constructor(uint256 lockDuration) {
+    constructor(address initialOwner, uint256 lockDuration) BaseDepositBox(initialOwner) {
         unlockTime = block.timestamp + lockDuration;
     }
 
@@ -18,8 +18,8 @@ contract TimeLockedDepositBox is BaseDepositBox {
         return "TimeLocked";
     }
 
-    function getSecret() public view override onlyOwner timeUnlocked returns (string memory) {
-        return super.getSecret();
+    function getSecret(address caller) public view override onlyOwner(caller) timeUnlocked returns (string memory) {
+        return super.getSecret(caller);
     }
 
     function getUnlockTime() external view returns (uint256) {
@@ -34,5 +34,4 @@ contract TimeLockedDepositBox is BaseDepositBox {
         }
     }
 
-    
 }

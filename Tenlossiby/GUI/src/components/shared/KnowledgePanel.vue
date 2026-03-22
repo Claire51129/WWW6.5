@@ -25,10 +25,22 @@
           @click="handleConceptClick(conceptKey)"
         >
           <span class="check-icon">✓</span>
-          {{ getConceptBadge(conceptKey) }}
+          <span class="badge-content">{{ getConceptBadge(conceptKey) }}</span>
         </div>
       </div>
       
+      <!-- Day 13 额外学习提示 -->
+      <div v-if="currentDay === 13 && allConceptsUnlocked" class="extra-learning-tip">
+        <div class="tip-icon">🎯</div>
+        <div class="tip-content">
+          <div class="tip-title">知识点已解锁，但学习不止于此！</div>
+          <div class="tip-desc">
+            虽然你已经掌握了 Day 13 的所有核心概念，但建议你继续尝试下方的<strong>授权</strong>和<strong>代转账</strong>操作。
+            这些操作能帮助你更深入地理解 ERC20 的授权机制，这在实际 DeFi 应用中非常重要！
+          </div>
+        </div>
+      </div>
+
       <button v-if="allConceptsUnlocked" class="view-full-code-btn" @click="showFullCode">
         📖 查看完整代码
       </button>
@@ -39,7 +51,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useConceptInteraction } from '@/composables/useConceptInteraction'
-import { conceptDefinitions, getHint, getConceptExplanationHint, day11ConceptDefinitions, getDay11ExplanationHint, day12ConceptDefinitions, getDay12Hint, getDay12ExplanationHint } from '@/data/concepts'
+import { conceptDefinitions, getHint, getConceptExplanationHint, day11ConceptDefinitions, getDay11ExplanationHint, day12ConceptDefinitions, getDay12Hint, getDay12ExplanationHint, day13ConceptDefinitions, getDay13ExplanationHint, day14ConceptDefinitions, getDay14Hint, getDay14ExplanationHint, day15ConceptDefinitions, getDay15Hint, getDay15ExplanationHint, day16ConceptDefinitions, getDay16Hint, getDay16ExplanationHint, day17ConceptDefinitions, getDay17Hint, getDay17ExplanationHint, day18ConceptDefinitions, getDay18Hint, getDay18ExplanationHint, day19ConceptDefinitions, getDay19Hint, getDay19ExplanationHint, day20ConceptDefinitions, getDay20Hint, getDay20ExplanationHint, day21ConceptDefinitions, getDay21Hint, getDay21ExplanationHint } from '@/data/concepts'
 
 const props = defineProps({
   // 当前Day编号
@@ -91,7 +103,7 @@ const {
 } = useConceptInteraction(updateCurrentConcept, props.currentDay)
 
 // 是否显示解锁区域
-const showUnlockArea = computed(() => props.unlockedConcepts.length > 0)
+const showUnlockArea = computed(() => props.unlockedConcepts.length > 0 || props.customHint)
 
 // 是否所有概念都已解锁
 const allConceptsUnlocked = computed(() => props.progressPercentage === 100)
@@ -152,16 +164,94 @@ const remainingConceptsGuide = computed(() => {
     return guides.join('\n')
   }
   
+  // Day 13 剩余概念指引
+  if (props.currentDay === 13) {
+    const allConcepts = ['constructor_mint', 'zero_address_mint', 'internal_function', 'virtual_function']
+    const unlocked = props.unlockedConcepts
+    const remaining = allConcepts.filter(c => !unlocked.includes(c))
+
+    const guides = []
+    if (remaining.includes('internal_function') || remaining.includes('virtual_function')) {
+      guides.push('👉 执行一次转账操作来解锁 internal 和 virtual 函数！')
+    }
+    if (remaining.includes('constructor_mint') || remaining.includes('zero_address_mint')) {
+      guides.push('👉 点击代币信息卡片来了解构造函数铸造和零地址！')
+    }
+
+    return guides.join('\n')
+  }
+
+  // Day 17 剩余概念指引
+  if (props.currentDay === 17) {
+    const allConcepts = ['proxy_pattern', 'delegatecall', 'storage_layout',
+                         'upgrade_mechanism', 'logic_contract', 'fallback_function',
+                         'data_persistence', 'version_control']
+    const unlocked = props.unlockedConcepts
+    const remaining = allConcepts.filter(c => !unlocked.includes(c))
+
+    const guides = []
+    if (remaining.includes('proxy_pattern')) {
+      guides.push('👉 点击合约架构图，了解代理模式！')
+    }
+    if (remaining.includes('delegatecall')) {
+      guides.push('👉 点击 delegatecall 说明按钮学习委托调用！')
+    }
+    if (remaining.includes('storage_layout')) {
+      guides.push('👉 点击存储布局说明按钮了解存储布局！')
+    }
+    if (remaining.includes('upgrade_mechanism') || remaining.includes('logic_contract')) {
+      guides.push('👉 创建至少2个计划后升级到 V2 来解锁升级机制！')
+    }
+    if (remaining.includes('fallback_function')) {
+      guides.push('👉 切换到 User 身份执行订阅来解锁回退函数！')
+    }
+    if (remaining.includes('data_persistence')) {
+      guides.push('👉 升级后查询订阅状态来验证数据持久化！')
+    }
+    if (remaining.includes('version_control')) {
+      guides.push('👉 使用 V2 的暂停/恢复功能来体验版本控制！')
+    }
+
+    return guides.join('\n')
+  }
+
   return ''
 })
 
-// 获取概念定义（支持 Day 11、Day 12 和其他天数）
+// 获取概念定义（支持 Day 11、Day 12、Day 13、Day 14、Day 15 和其他天数）
 const getConceptDefinition = (key) => {
   if (props.currentDay === 11) {
     return day11ConceptDefinitions[key]
   }
   if (props.currentDay === 12) {
     return day12ConceptDefinitions[key]
+  }
+  if (props.currentDay === 13) {
+    return day13ConceptDefinitions[key]
+  }
+  if (props.currentDay === 14) {
+    return day14ConceptDefinitions[key]
+  }
+  if (props.currentDay === 15) {
+    return day15ConceptDefinitions[key]
+  }
+  if (props.currentDay === 16) {
+    return day16ConceptDefinitions[key]
+  }
+  if (props.currentDay === 17) {
+    return day17ConceptDefinitions[key]
+  }
+  if (props.currentDay === 18) {
+    return day18ConceptDefinitions[key]
+  }
+  if (props.currentDay === 19) {
+    return day19ConceptDefinitions[key]
+  }
+  if (props.currentDay === 20) {
+    return day20ConceptDefinitions[key]
+  }
+  if (props.currentDay === 21) {
+    return day21ConceptDefinitions[key]
   }
   return conceptDefinitions[key]
 }
@@ -186,13 +276,37 @@ const currentConcept = computed(() => {
   }
 })
 
-// 获取概念解释（支持 Day 11、Day 12 和其他天数）
+// 获取概念解释（支持 Day 11、Day 12、Day 13 和其他天数）
 const getConceptHint = (key) => {
   if (props.currentDay === 11) {
     return getDay11ExplanationHint(key)
   }
   if (props.currentDay === 12) {
     return getDay12ExplanationHint(key)
+  }
+  if (props.currentDay === 13) {
+    return getDay13ExplanationHint(key)
+  }
+  if (props.currentDay === 14) {
+    return getDay14ExplanationHint(key)
+  }
+  if (props.currentDay === 15) {
+    return getDay15ExplanationHint(key)
+  }
+  if (props.currentDay === 16) {
+    return getDay16ExplanationHint(key)
+  }
+  if (props.currentDay === 17) {
+    return getDay17ExplanationHint(key)
+  }
+  if (props.currentDay === 18) {
+    return getDay18ExplanationHint(key)
+  }
+  if (props.currentDay === 19) {
+    return getDay19ExplanationHint(key)
+  }
+  if (props.currentDay === 20) {
+    return getDay20ExplanationHint(key)
   }
   return getConceptExplanationHint(key)
 }
@@ -216,27 +330,90 @@ const getNextStepHint = (conceptKey) => {
 
 // 提示文本
 const hintText = computed(() => {
-  // 如果用户手动选择了概念，优先显示该知识点的解释
+  // 优先级 1: Day 11 显示最新解锁概念的下一步提示
+  if (props.currentDay === 11 && currentConcept.value && !manualConceptKey.value) {
+    return getNextStepHint(currentConcept.value.key)
+  }
+  
+  // 优先级 2: Day 12 显示下一步提示
+  if (props.currentDay === 12 && currentConcept.value && !manualConceptKey.value) {
+    return getDay12Hint(currentConcept.value.key)
+  }
+  
+  // 优先级 3: Day 13 显示下一步提示
+  if (props.currentDay === 13 && currentConcept.value && !manualConceptKey.value) {
+    const hints = {
+      constructor_mint: '🪙 太棒了！你了解了构造函数铸造机制！👉 点击代币信息卡片了解零地址含义！',
+      zero_address_mint: '📍 优秀！你了解了零地址的特殊含义！👉 执行转账操作来解锁 internal 和 virtual 函数！',
+      internal_function: '🔒 太棒了！你了解了 internal 函数！转账操作同时解锁了 virtual 关键字！👉 点击查看完整代码了解所有知识点！',
+      virtual_function: '🧬 恭喜你！你了解了 virtual 关键字！🎉 你已掌握 Day 13 的所有核心概念！点击查看完整代码回顾所有知识！'
+    }
+    return hints[currentConcept.value.key] || getConceptHint(currentConcept.value.key)
+  }
+
+  // 优先级 4: Day 14 显示下一步提示
+  if (props.currentDay === 14 && currentConcept.value && !manualConceptKey.value) {
+    return getDay14Hint(currentConcept.value.key)
+  }
+
+  // 优先级 5: Day 15 显示下一步提示
+  if (props.currentDay === 15 && currentConcept.value && !manualConceptKey.value) {
+    return getDay15Hint(currentConcept.value.key)
+  }
+
+  // 优先级 6: Day 16 显示下一步提示
+  if (props.currentDay === 16 && currentConcept.value && !manualConceptKey.value) {
+    return getDay16Hint(currentConcept.value.key)
+  }
+
+  // 优先级 6: Day 17 显示下一步提示
+  if (props.currentDay === 17 && currentConcept.value && !manualConceptKey.value) {
+    return getDay17Hint(currentConcept.value.key)
+  }
+
+  // 优先级 6: Day 18 显示下一步提示
+  if (props.currentDay === 18 && currentConcept.value && !manualConceptKey.value) {
+    return getDay18Hint(currentConcept.value.key)
+  }
+
+  // 优先级 6: Day 19 显示下一步提示
+  if (props.currentDay === 19 && currentConcept.value && !manualConceptKey.value) {
+    return getDay19Hint(currentConcept.value.key)
+  }
+
+  // 优先级 6: Day 20 显示下一步提示
+  if (props.currentDay === 20 && currentConcept.value && !manualConceptKey.value) {
+    return getDay20Hint(currentConcept.value.key)
+  }
+
+  // 优先级 6: Day 21 显示下一步提示
+  if (props.currentDay === 21 && currentConcept.value && !manualConceptKey.value) {
+    return getDay21Hint(currentConcept.value.key)
+  }
+
+  // 优先级 7: 用户手动点击概念标签，显示详细解释
   if (manualConceptKey.value && currentConcept.value) {
+    // Day 11、12、13、14、15、16、17、18、19、20 使用专门的解释提示函数
+    if (props.currentDay === 11) return getDay11ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 12) return getDay12ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 13) return getDay13ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 14) return getDay14ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 15) return getDay15ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 16) return getDay16ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 17) return getDay17ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 18) return getDay18ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 19) return getDay19ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 20) return getDay20ExplanationHint(currentConcept.value.key)
+    if (props.currentDay === 21) return getDay21ExplanationHint(currentConcept.value.key)
     return getConceptHint(currentConcept.value.key)
   }
   
-  // 其次使用外部传入的 customHint
+  // 优先级 6: 外部传入的自定义提示
   if (props.customHint) {
     return props.customHint
   }
   
-  // Day 11 显示下一步提示
-  if (props.currentDay === 11 && currentConcept.value) {
-    return getNextStepHint(currentConcept.value.key)
-  }
-  
-  // Day 12 显示下一步提示
-  if (props.currentDay === 12 && currentConcept.value) {
-    return getDay12Hint(currentConcept.value.key)
-  }
-  
-  // 否则显示当前概念的详细解释
+  // 默认显示当前概念的详细解释
   return currentConcept.value ? getConceptHint(currentConcept.value.key) : ''
 })
 
@@ -387,6 +564,48 @@ const showFullCode = () => {
 
 .check-icon {
   font-size: 1.1em;
+}
+
+.badge-content {
+  color: inherit;
+}
+
+/* 额外学习提示 - Day 13 专属 */
+.extra-learning-tip {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 15px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.extra-learning-tip .tip-icon {
+  font-size: 1.5em;
+  flex-shrink: 0;
+}
+
+.extra-learning-tip .tip-content {
+  flex: 1;
+}
+
+.extra-learning-tip .tip-title {
+  font-weight: 600;
+  color: #a855f7;
+  margin-bottom: 6px;
+  font-size: 0.95em;
+}
+
+.extra-learning-tip .tip-desc {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.extra-learning-tip .tip-desc strong {
+  color: #ec4899;
 }
 
 /* 查看完整代码按钮 - 与 main.css 保持一致 */

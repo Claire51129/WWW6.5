@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day18 CropInsurance 教学面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 280px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+    }
+    .hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.5;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day18 CropInsurance 教学面板</h1>
+  <p class="hint">
+    与 <code>day18_CropInsurance.sol</code> 配套：读 Chainlink 聚合器（需部署时传入正确预言机地址）、购买保险、触发理赔（降雨量低于阈值时合约会转 ETH）。<br />
+    技术栈：原生 HTML + JS，依赖浏览器中的 MetaMask 与 CDN 上的 ethers v5。
+  </p>
+
+  <div class="card">
+    <h2>1. 连接钱包 / 合约地址</h2>
+    <label>CropInsurance 合约地址（部署后粘贴）：</label>
+    <input id="contractAddress" placeholder="0x..." />
+    <button id="connectBtn">连接 MetaMask</button>
+    <button class="secondary" id="refreshReadBtn" type="button">仅刷新只读数据</button>
+    <span class="tag" id="connStatusTag">未连接</span>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>2. 合约参数与预言机读数</h2>
+      <div class="status" id="readStatus">连接钱包后点击「仅刷新只读数据」。</div>
+    </div>
+    <div class="card">
+      <h2>3. 当前地址保单状态</h2>
+      <div class="status" id="userStatus">—</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>4. 购买保险 purchaseInsurance</h2>
+      <p class="hint">合约要求 <code>msg.value &gt;= (INSURANCE_PREMIUM_USD * 1e18) / getEthPrice()</code>。下方估算与合约一致；若因整除差 1 wei，可手动多加极少 wei。</p>
+      <label>发送 ETH（wei，可留空则自动用估算值）：</label>
+      <input id="premiumWeiOverride" placeholder="留空 = 使用估算保费（+1 wei 防整除）" />
+      <button id="purchaseBtn">购买保险</button>
+      <div class="status" id="purchaseStatus"></div>
+    </div>
+    <div class="card">
+      <h2>5. 检查降雨并理赔 checkRainfallAndClaim</h2>
+      <p class="hint">需已投保；两次理赔间隔至少 24h；降雨量 &lt; 阈值时合约向调用者支付赔款。</p>
+      <button id="claimBtn">检查降雨并尝试理赔</button>
+      <div class="status" id="claimStatus"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>6. 所有者提款 withdraw（仅 owner）</h2>
+    <p class="hint">若当前连接地址不是 <code>owner()</code>，交易会回滚。</p>
+    <button id="withdrawBtn">提取合约全部余额到 owner</button>
+    <div class="status" id="withdrawStatus"></div>
+  </div>
+
+  <script>
+    const CONTRACT_ABI = [
+      "function RAINFALL_THRESHOLD() view returns (uint256)",
+      "function INSURANCE_PREMIUM_USD() view returns (uint256)",
+      "function INSURANCE_PAYOUT_USD() view returns (uint256)",
+      "function hasInsurance(address) view returns (bool)",
+      "function lastClaimTimestamp(address) view returns (uint256)",
+      "function getEthPrice() view returns (uint256)",
+      "function getCurrentRainfall() view returns (uint256)",
+      "function getBalance() view returns (uint256)",
+      "function owner() view returns (address)",
+      "function purchaseInsurance() payable",
+      "function checkRainfallAndClaim() external",
+      "function withdraw() external"
+    ];
+
+    let provider = null;
+    let signer = null;
+    let contract = null;
+
+    const connectBtn = document.getElementById("connectBtn");
+    const refreshReadBtn = document.getElementById("refreshReadBtn");
+    const connStatusTag = document.getElementById("connStatusTag");
+    const globalStatus = document.getElementById("globalStatus");
+    const contractAddressInput = document.getElementById("contractAddress");
+    const readStatus = document.getElementById("readStatus");
+    const userStatus = document.getElementById("userStatus");
+
+    function setGlobalStatus(msg) {
+      globalStatus.textContent = msg || "";
+    }
+
+    function requireContractAddress() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) {
+        throw new Error("请先输入已部署的 CropInsurance 合约地址。");
+      }
+      return addr;
+    }
+
+    async function ensureConnection() {
+      if (!window.ethereum) {
+        throw new Error("未检测到 MetaMask，请先安装扩展程序。");
+      }
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
+      if (!signer) {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const a = accounts[0] || "";
+        connStatusTag.textContent = a ? "已连接: " + a.slice(0, 6) + "..." + a.slice(-4) : "已连接";
+        connStatusTag.style.color = "#4ade80";
+      }
+      const addr = requireContractAddress();
+      if (!contract || contract.address.toLowerCase() !== addr.toLowerCase()) {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+      }
+    }
+
+    function readOnlyContract() {
+      const addr = requireContractAddress();
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
+      return new ethers.Contract(addr, CONTRACT_ABI, provider);
+    }
+
+    /** 与合约一致：premiumWei = PREMIUM_USD * 1e18 / ethPrice */
+    function estimatePremiumWei(ethPriceBn, premiumUsdBn) {
+      const base = premiumUsdBn
+        .mul(ethers.constants.WeiPerEther)
+        .div(ethPriceBn);
+      return base.add(1);
+    }
+
+    async function refreshReads() {
+      readStatus.textContent = "加载中...";
+      userStatus.textContent = "—";
+      try {
+        const c = signer ? contract : readOnlyContract();
+        const [
+          threshold,
+          premiumUsd,
+          payoutUsd,
+          ethPrice,
+          rainfall,
+          balance,
+          ownerAddr
+        ] = await Promise.all([
+          c.RAINFALL_THRESHOLD(),
+          c.INSURANCE_PREMIUM_USD(),
+          c.INSURANCE_PAYOUT_USD(),
+          c.getEthPrice(),
+          c.getCurrentRainfall(),
+          c.getBalance(),
+          c.owner()
+        ]);
+
+        const estPremium = estimatePremiumWei(ethPrice, premiumUsd);
+        const estPayout = payoutUsd.mul(ethers.constants.WeiPerEther).div(ethPrice).add(1);
+
+        readStatus.textContent =
+          "RAINFALL_THRESHOLD: " + threshold.toString() + "（低于则触发赔付逻辑）\n" +
+          "INSURANCE_PREMIUM_USD: " + premiumUsd.toString() + "\n" +
+          "INSURANCE_PAYOUT_USD: " + payoutUsd.toString() + "\n" +
+          "---\n" +
+          "getEthPrice()（预言机原始 uint256）: " + ethPrice.toString() + "\n" +
+          "getCurrentRainfall(): " + rainfall.toString() + "\n" +
+          "合约 ETH 余额 getBalance(): " + ethers.utils.formatEther(balance) + " ETH\n" +
+          "估算保费 wei（与合约公式一致 +1）: " + estPremium.toString() + "\n" +
+          "估算赔款 wei（仅前端示意，+1）: " + estPayout.toString() + "\n" +
+          "---\n" +
+          "owner: " + ownerAddr + "\n" +
+          "（预言机地址在合约为 private，无 getter；以部署时所用为准。）";
+
+        if (signer) {
+          const me = await signer.getAddress();
+          const insured = await c.hasInsurance(me);
+          const lastTs = await c.lastClaimTimestamp(me);
+          const lastStr = lastTs.isZero()
+            ? "从未理赔记录（0）"
+            : new Date(Number(lastTs.toString()) * 1000).toLocaleString();
+          userStatus.textContent =
+            "当前地址: " + me + "\n" +
+            "hasInsurance: " + insured + "\n" +
+            "lastClaimTimestamp: " + lastTs.toString() + " → " + lastStr;
+        } else {
+          userStatus.textContent = "连接钱包后可查看本人 hasInsurance / lastClaimTimestamp。";
+        }
+      } catch (err) {
+        console.error(err);
+        readStatus.textContent = "读取失败: " + (err.data?.message || err.message || err);
+      }
+    }
+
+    connectBtn.addEventListener("click", async () => {
+      try {
+        setGlobalStatus("连接中...");
+        await ensureConnection();
+        setGlobalStatus("已连接，可购买/理赔或刷新数据。");
+        await refreshReads();
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("失败: " + (err.message || err));
+      }
+    });
+
+    refreshReadBtn.addEventListener("click", async () => {
+      try {
+        if (!window.ethereum) {
+          throw new Error("需要 MetaMask 以读取链上数据。");
+        }
+        requireContractAddress();
+        if (!signer) {
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+        } else {
+          await ensureConnection();
+        }
+        await refreshReads();
+        setGlobalStatus("只读数据已刷新。");
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("刷新失败: " + (err.message || err));
+      }
+    });
+
+    document.getElementById("purchaseBtn").addEventListener("click", async () => {
+      const el = document.getElementById("purchaseStatus");
+      el.textContent = "";
+      try {
+        await ensureConnection();
+        const ethPrice = await contract.getEthPrice();
+        const premiumUsd = await contract.INSURANCE_PREMIUM_USD();
+        const overrideStr = document.getElementById("premiumWeiOverride").value.trim();
+        let valueBn;
+        if (overrideStr) {
+          valueBn = ethers.BigNumber.from(overrideStr);
+        } else {
+          valueBn = estimatePremiumWei(ethPrice, premiumUsd);
+        }
+        el.textContent = "发送 purchaseInsurance，value=" + valueBn.toString() + " wei ...";
+        const tx = await contract.purchaseInsurance({ value: valueBn });
+        el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+        const receipt = await tx.wait();
+        el.textContent += "\n已确认，区块: " + receipt.blockNumber;
+        await refreshReads();
+      } catch (err) {
+        console.error(err);
+        el.textContent = "失败: " + (err.data?.message || err.reason || err.message || err);
+      }
+    });
+
+    document.getElementById("claimBtn").addEventListener("click", async () => {
+      const el = document.getElementById("claimStatus");
+      el.textContent = "";
+      try {
+        await ensureConnection();
+        el.textContent = "发送 checkRainfallAndClaim ...";
+        const tx = await contract.checkRainfallAndClaim();
+        el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+        const receipt = await tx.wait();
+        el.textContent += "\n已确认，区块: " + receipt.blockNumber + "\n（若雨量未低于阈值，交易仍会成功但不会转赔款。）";
+        await refreshReads();
+      } catch (err) {
+        console.error(err);
+        el.textContent = "失败: " + (err.data?.message || err.reason || err.message || err);
+      }
+    });
+
+    document.getElementById("withdrawBtn").addEventListener("click", async () => {
+      const el = document.getElementById("withdrawStatus");
+      el.textContent = "";
+      try {
+        await ensureConnection();
+        el.textContent = "发送 withdraw ...";
+        const tx = await contract.withdraw();
+        el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+        const receipt = await tx.wait();
+        el.textContent += "\n已确认，区块: " + receipt.blockNumber;
+        await refreshReads();
+      } catch (err) {
+        console.error(err);
+        el.textContent = "失败: " + (err.data?.message || err.reason || err.message || err);
+      }
+    });
+  </script>
+</body>
+</html>

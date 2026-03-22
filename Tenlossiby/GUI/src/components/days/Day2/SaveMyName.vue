@@ -1,6 +1,6 @@
 <template>
-  <div class="day-2-content">
-    <div class="content-layout">
+  <div class="day-2-content day-content">
+    <div class="content-layout" :class="{ 'single-column': unlockedConcepts.length === 0 }">
       <!-- 左侧：交互区域 -->
       <div class="left-column">
         <div class="interaction-area">
@@ -16,12 +16,12 @@
           </div>
           <div class="input-group">
             <label>📄 简介：</label>
-            <textarea
+            <input
               v-model="inputBio"
+              type="text"
               placeholder="介绍一下你自己"
-              rows="3"
               @keyup.enter="handleStore"
-            ></textarea>
+            />
           </div>
           <div class="button-group">
             <button class="day-action-btn green" @click="handleStore">
@@ -82,14 +82,17 @@
         </div>
       </div>
 
-      <!-- 右侧：知识面板（使用共享组件） -->
-      <KnowledgePanel
-        :current-day="2"
-        :unlocked-concepts="unlockedConcepts"
-        :progress-percentage="progressPercentage"
-        :full-code="fullCode"
-        @show-full-code="showFullCode = true"
-      />
+      <!-- 右侧：知识面板 -->
+      <div class="right-column">
+        <KnowledgePanel
+          v-if="unlockedConcepts.length > 0"
+          :current-day="2"
+          :unlocked-concepts="unlockedConcepts"
+          :progress-percentage="progressPercentage"
+          :full-code="fullCode"
+          @show-full-code="showFullCode = true"
+        />
+      </div>
     </div>
 
     <!-- 完整代码弹窗（使用共享组件） -->
@@ -105,6 +108,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useDay2 } from '@/composables/useDay2'
+import { getFullCode } from '@/data/days'
 import KnowledgePanel from '@/components/shared/KnowledgePanel.vue'
 import FullCodeModal from '@/components/shared/FullCodeModal.vue'
 
@@ -121,40 +125,7 @@ const {
 } = useDay2()
 
 // 完整代码
-const fullCode = `// SPDX-License-Identifier:MIT
-
-// 声明Solidity版本，要求编译器版本在0.8.0或更高（但低于0.9.0）
-pragma solidity ^0.8.0;
-
-// 定义一个名为SaveMyName的合约，用于存储和检索姓名与简介
-contract SaveMyName{
-
-  // 声明一个字符串类型的私有状态变量name（默认私有）
-  string name;
-
-  // 声明一个字符串类型的私有状态变量bio（默认私有）
-  string bio;
-
-  // 定义一个名为add的公共函数，用于设置姓名和简介
-  // memory关键字表示参数数据存储在内存中（临时存储）
-  // _name 和 _bio 是函数参数（参数名通常用下划线前缀表示）
-  function add (string memory _name, string memory _bio )public {
-    // 将传入的_name值赋给状态变量name
-    name = _name;
-
-    // 将传入的_bio值赋给状态变量bio
-    bio = _bio;
-  }
-
-  // 定义一个名为retrieve的公共函数，用于获取姓名和简介
-  // view关键字表示该函数只读取状态变量，不修改任何状态（不消耗gas）
-  // returns声明返回值类型为两个字符串
-  function retrieve() public view returns(string memory, string memory){
-    // 返回name和bio的值（以元组形式返回多个值）
-    return (name,bio);
-  }
-
-}`
+const fullCode = computed(() => getFullCode(2))
 
 // 是否显示完整代码弹窗
 const showFullCode = ref(false)
@@ -231,62 +202,32 @@ const handleSearch = () => {
 </script>
 
 <style scoped>
-.day-2-content {
-  width: 100%;
-}
+/* Day 2 特有样式 */
 
-.content-layout {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.left-column {
-  flex: 1;
-  min-width: 300px;
-}
-
-.interaction-area {
-  background: var(--bg-surface-1);
-  padding: 20px;
-  border-radius: 8px;
-  border: 2px solid var(--border-main);
-}
-
-.interaction-area h3 {
-  margin-top: 0;
-  color: var(--accent-yellow);
-}
-
-.input-group {
+/* 确保输入框布局为两行：label和input在同一行 */
+.day-2-content .input-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px;
   margin-bottom: 15px;
 }
 
-.input-group label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text-main);
-  font-weight: 500;
+.day-2-content .input-group label {
+  min-width: 80px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.input-group input,
-.input-group textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border-main);
-  border-radius: 6px;
-  background: var(--bg-base);
-  color: var(--text-main);
-  font-size: 1em;
-  font-family: inherit;
-  box-sizing: border-box;
+.day-2-content .input-group input {
+  flex: 1;
 }
 
-.input-group input:focus,
-.input-group textarea:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.1);
+/* 覆盖响应式样式，始终保持行布局 */
+@media (max-width: 768px) {
+  .day-2-content .input-group {
+    flex-direction: row !important;
+  }
 }
 
 .button-group {

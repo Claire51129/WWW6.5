@@ -10,13 +10,14 @@ abstract contract BaseDepositBox is IDepositBox{
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event SecretStored(string secret, uint256 timestamp);
 
-    constructor() {
-        owner = msg.sender;
+    constructor(address initialOwner) {
+        require(initialOwner != address(0), "Initial owner cannot be the zero address");
+        owner = initialOwner;
         depositTime = block.timestamp;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only the owner can call this function");
+    modifier onlyOwner(address caller) {
+        require(caller == owner, "Only the owner can call this function");
         _;
     }
 
@@ -24,22 +25,23 @@ abstract contract BaseDepositBox is IDepositBox{
         return owner;
     }
 
-    function transferOwnership(address newOwner) external virtual override onlyOwner {
+    function transferOwnership(address newOwner, address caller) external virtual override onlyOwner(caller) {
         require(newOwner != address(0), "New owner cannot be the zero address");
         emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
     }
 
-    function storeSecret(string calldata _secret) external virtual override onlyOwner {
+    function storeSecret(string calldata _secret, address caller) external virtual override onlyOwner(caller) {
         secret = _secret;
         emit SecretStored(_secret, block.timestamp);
     }
 
-    function getSecret() public view virtual override onlyOwner returns (string memory) {
+    function getSecret(address caller) public view virtual override onlyOwner(caller) returns (string memory) {
         return secret;
     }
 
     function getDepositTime() external view virtual override returns(uint256) {
         return depositTime;
     }
+    
 }

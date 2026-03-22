@@ -16,9 +16,8 @@ abstract contract BaseDepositBox is IDepositBox {
         _;
     }
 
-    constructor(address initialOwner) {
-        require(initialOwner != address(0), "Owner cannot be zero address");
-        owner = initialOwner;
+    constructor() {
+        owner = msg.sender;
         depositTime = block.timestamp;
     }
 

@@ -49,6 +49,10 @@ const sortedDays = computed(() => {
 })
 
 const getDaySubtitle = (day) => {
+  // Day 14 使用自定义标题
+  if (day === 14) {
+    return '安全存款盒/SafeDeposit'
+  }
   return dayConfigs[day]?.subtitle || '待定内容'
 }
 </script>

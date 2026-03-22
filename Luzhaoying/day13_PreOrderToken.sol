@@ -125,8 +125,3 @@ contract SimplifiedTokenSale is SimpleERC20 {
         buyTokens();
     }
     }
-
-
-
-
-

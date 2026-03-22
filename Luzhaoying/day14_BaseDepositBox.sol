@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 //导入接口
-import {IDepositBox} from "./day14_IDepositBox.sol";
+import "./day14_IDepositBox.sol";
 
 //基础型抽象合约:所有特定类型的存款箱——如基础型、高级型和时间锁型——都建立在这个合约之上
 //关键字 abstract 表示这个合约不能直接部署。它是充当其他合约构建的模板或地基
