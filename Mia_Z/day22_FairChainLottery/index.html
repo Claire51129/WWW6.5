@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FairChainLottery · 链上公平抽奖</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>FairChainLottery</h1>
+        <p>Chainlink VRF 随机开奖 · 连接钱包后与合约交互</p>
+      </header>
+
+      <div class="grid">
+        <section class="card">
+          <h2>连接与合约</h2>
+          <div class="row">
+            <label for="contractAddress">合约地址</label>
+            <input
+              id="contractAddress"
+              type="text"
+              placeholder="0x… 部署后的 FairChainLottery 地址"
+              autocomplete="off"
+            />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="connectBtn">连接钱包</button>
+            <button type="button" class="btn btn-secondary" id="refreshBtn">刷新状态</button>
+            <button type="button" class="btn btn-secondary" id="saveAddrBtn">保存地址</button>
+          </div>
+          <div class="row" style="margin-top: 0.85rem">
+            <label>当前账户</label>
+            <span class="mono" id="account">—</span>
+          </div>
+          <div class="row">
+            <label>网络</label>
+            <span class="mono" id="chain">—</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>抽奖状态</h2>
+          <div class="row">
+            <label>阶段</label>
+            <span id="stateBadge" class="badge badge-closed">—</span>
+          </div>
+          <div class="row">
+            <label>入场费</label>
+            <span class="mono" id="entryFee">—</span>
+          </div>
+          <div class="row">
+            <label>最近中奖者</label>
+            <span class="mono" id="winner">—</span>
+          </div>
+          <div class="row">
+            <label>最近 VRF 请求 ID</label>
+            <span class="mono" id="requestId">—</span>
+          </div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top: 1rem">
+        <h2>参与者列表</h2>
+        <ul class="players-list" id="players">
+          <li>连接钱包并刷新后显示</li>
+        </ul>
+      </section>
+
+      <section class="card" style="margin-top: 1rem">
+        <h2>操作</h2>
+        <p class="mono" id="ownerHint" style="margin: 0 0 0.75rem; color: var(--muted); font-size: 0.85rem">
+          连接钱包后显示是否 owner
+        </p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="enterBtn" disabled>支付入场费参与</button>
+          <button type="button" class="btn btn-secondary" id="startBtn" disabled>开始抽奖 (owner)</button>
+          <button type="button" class="btn btn-danger" id="endBtn" disabled>结束并请求随机数 (owner)</button>
+        </div>
+        <div id="log" class="log">就绪。</div>
+
+        <details class="debug-panel">
+          <summary>调试详情（链上上下文与完整错误）</summary>
+          <p class="debug-hint">
+            发交易前会先 <code>staticCall</code> 模拟；失败时此处含 revert <code>data</code> 解码结果。成功后可打开浏览器核对回调交易。
+          </p>
+          <pre id="debugLog" class="debug-pre"></pre>
+          <div class="debug-actions">
+            <button type="button" class="btn btn-secondary" id="copyDebugBtn">复制调试信息</button>
+            <a
+              class="explorer-link"
+              id="txExplorerLink"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="display: none"
+              >在区块浏览器打开上一笔交易</a
+            >
+          </div>
+        </details>
+      </section>
+
+      <details class="doc">
+        <summary>嵌入式 / Web3 小白说明（点击展开）</summary>
+        <div class="doc-body">
+          <h3>这个页面在链上做了什么？</h3>
+          <p>
+            合约 <code>FairChainLottery</code> 把 ETH 奖池和参与者记在区块链上；随机数由
+            <strong>Chainlink VRF</strong> 在回调 <code>fulfillRandomWords</code> 里产生，再按随机数选中中奖者并发奖。前端不会「算随机数」，只负责读状态、发起
+            <code>enter / startLottery / endLottery</code> 交易。
+          </p>
+
+          <h3>几个必懂概念（和本页一一对应）</h3>
+          <ol>
+            <li>
+              <strong>钱包（如 MetaMask）</strong>：保存你的私钥，浏览器里通过
+              <code>window.ethereum</code> 暴露给网页；点「连接钱包」即请求用户授权账户给本页使用。
+            </li>
+            <li>
+              <strong>Provider</strong>：只读通道，可调用 <code>view</code> 函数（如
+              <code>entryFee</code>、<code>lotteryState</code>），不花钱。
+            </li>
+            <li>
+              <strong>Signer</strong>：能签名「交易」的对象；发 <code>enter</code>、<code>startLottery</code> 等会改链上状态，需付 gas（测试网可用水龙头领测试 ETH）。
+            </li>
+            <li>
+              <strong>合约地址</strong>：部署后唯一标识这份合约；必须填对且<strong>网络一致</strong>（例如 Sepolia 的地址不能拿到主网用）。
+            </li>
+            <li>
+              <strong>ABI</strong>：函数名与参数类型的清单；本页用「最小 ABI」数组，只包含用到的函数，ethers 用它来编码调用数据。
+            </li>
+            <li>
+              <strong>payable / msg.value</strong>：<code>enter()</code> 要求附带至少
+              <code>entryFee</code> 的 ETH；代码里用 <code>{ value: fee }</code> 把一笔钱随交易一起发给合约。
+            </li>
+          </ol>
+
+          <h3>合约状态机（和按钮关系）</h3>
+          <ul>
+            <li><code>CLOSED</code>：未开放或上一轮已结束；owner 可点「开始抽奖」→ <code>OPEN</code>。</li>
+            <li><code>OPEN</code>：用户可「支付入场费参与」；owner 可「结束并请求随机数」→ <code>CALCULATING</code>。</li>
+            <li>
+              <code>CALCULATING</code>：已向 VRF 请求随机数，等待预言机回调；回调完成后中奖者入账、状态回到
+              <code>CLOSED</code>。若长时间不变，检查订阅 LINK/ETH、回调 gas、网络是否拥堵。
+            </li>
+          </ul>
+
+          <h3>两笔链上交易：请求随机数 vs 真正开奖</h3>
+          <p>
+            点「结束并请求随机数」且 MetaMask 显示<strong>成功</strong>，只表示你的合约已成功调用
+            <code>requestRandomWords</code>（链上会更新 <code>latestRequestId</code>）。<strong>中奖地址与转奖池</strong>发生在第二笔：Chainlink 节点以<strong>回调交易</strong>调用你合约里的
+            <code>fulfillRandomWords</code>，这一步才选出中奖者并发 ETH。若一直处于
+            <code>CALCULATING</code>，请到区块浏览器查看是否有<strong>针对你合约的失败回调</strong>，并检查 VRF 订阅余额、Consumer 是否已添加。
+          </p>
+
+          <h3>本地如何预览？</h3>
+          <p>
+            不要用 <code>file://</code> 直接打开（部分环境限制钱包注入）。在项目目录执行：
+          </p>
+          <pre>npx --yes serve .</pre>
+          <p>浏览器打开提示的本地地址，再连接钱包即可。</p>
+
+          <h3>安全提示</h3>
+          <p>
+            本页仅教学演示；主网操作前请自行审计合约。勿在不可信网站粘贴私钥；仅通过钱包签名交易。
+          </p>
+        </div>
+      </details>
+
+      <p class="footer-hint">依赖：ethers.js v6（CDN）。需已部署 FairChainLottery 并配置好 Chainlink VRF 订阅。</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

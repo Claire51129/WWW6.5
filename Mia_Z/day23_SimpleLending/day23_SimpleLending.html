@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day23 SimpleLending 简易银行</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 16px;
+      padding-bottom: 48px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button.danger {
+      background: linear-gradient(to right, #f97316, #dc2626);
+      color: #fef2f2;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 280px;
+      margin-bottom: 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+      vertical-align: middle;
+    }
+    .tag.ok {
+      border-color: #22c55e;
+      color: #86efac;
+    }
+    .hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.5;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .profile-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #020617;
+      flex-shrink: 0;
+      border: 2px solid rgba(148, 163, 184, 0.4);
+    }
+    .profile-meta {
+      flex: 1;
+      min-width: 200px;
+    }
+    .profile-meta .addr {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .contract-pill {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+    .contract-pill code {
+      font-size: 11px;
+    }
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .kv {
+      background: #020617;
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid #334155;
+    }
+    .kv .k {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .kv .v {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    table.tx-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.tx-table th,
+    table.tx-table td {
+      border-bottom: 1px solid #334155;
+      padding: 8px 6px;
+      text-align: left;
+    }
+    table.tx-table th {
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    table.tx-table tr:nth-child(even) td {
+      background: rgba(2, 6, 23, 0.5);
+    }
+    table.tx-table a {
+      color: #38bdf8;
+    }
+    .config-details {
+      margin-top: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0;
+      overflow: hidden;
+    }
+    .config-details summary {
+      cursor: pointer;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #cbd5e1;
+      list-style: none;
+    }
+    .config-details summary::-webkit-details-marker {
+      display: none;
+    }
+    .config-details[open] summary {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .config-inner {
+      padding: 16px;
+    }
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      margin: 12px 0 8px;
+    }
+    .section-title:first-child {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day23 SimpleLending 简易银行</h1>
+  <p class="hint">
+    与 <code>day23_SimpleLending.sol</code> 配套：池内存款、抵押借款、按基点计息。需浏览器安装 MetaMask，并在底部配置中填写已部署合约地址。
+    技术栈：原生 HTML + JS，ethers v5（CDN）。
+  </p>
+
+  <div class="card">
+    <h2>用户与连接</h2>
+    <div class="profile-row">
+      <div class="avatar" id="avatarEl">—</div>
+      <div class="profile-meta">
+        <div>
+          <strong>当前账户</strong>
+          <span class="tag" id="connStatusTag">未连接</span>
+        </div>
+        <div class="addr" id="userAddrDisplay">连接钱包后显示地址。</div>
+        <div class="contract-pill">
+          合约：<code id="contractAddrDisplay">未配置</code>
+        </div>
+      </div>
+      <div>
+        <button id="connectBtn" type="button">连接 MetaMask</button>
+        <button class="secondary" id="refreshReadBtn" type="button">仅刷新只读数据</button>
+      </div>
+    </div>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <div class="row">
+    <div class="card" style="flex: 2 1 400px;">
+      <h2>账户总览</h2>
+      <p class="hint">以下为链上读数；金额均以 ETH 展示。</p>
+      <div class="kv-grid" id="overviewGrid">
+        <div class="kv"><div class="k">存款余额</div><div class="v" id="ovDeposit">—</div></div>
+        <div class="kv"><div class="k">抵押余额</div><div class="v" id="ovCollateral">—</div></div>
+        <div class="kv"><div class="k">当前债务（本金+应计息）</div><div class="v" id="ovDebt">—</div></div>
+        <div class="kv"><div class="k">可借上限</div><div class="v" id="ovMaxBorrow">—</div></div>
+        <div class="kv"><div class="k">池子总流动性</div><div class="v" id="ovLiquidity">—</div></div>
+        <div class="kv"><div class="k">借款本金（mapping）</div><div class="v" id="ovBorrowPrincipal">—</div></div>
+      </div>
+    </div>
+    <div class="card" style="flex: 1 1 240px;">
+      <h2>市场参数</h2>
+      <div class="status" id="marketStatus">填写合约地址后可刷新。</div>
+    </div>
+  </div>
+
+  <div class="section-title">存款与取款</div>
+  <div class="row">
+    <div class="card">
+      <h2>存款 deposit</h2>
+      <p class="hint">向合约池存入 ETH，增加你的 <code>depositBalances</code>。</p>
+      <label>金额（ETH）</label>
+      <input id="inDeposit" type="text" inputmode="decimal" placeholder="例如 0.1" autocomplete="off" />
+      <p class="hint">将转为 wei 作为 <code>msg.value</code> 发送。</p>
+      <button id="btnDeposit" type="button">确认存款</button>
+      <div class="status" id="stDeposit"></div>
+    </div>
+    <div class="card">
+      <h2>取款 withdraw</h2>
+      <p class="hint">从存款余额取出 ETH 到当前钱包。</p>
+      <label>金额（ETH）</label>
+      <input id="inWithdraw" type="text" inputmode="decimal" placeholder="例如 0.05" autocomplete="off" />
+      <p class="hint">不得超过当前存款余额。</p>
+      <button class="danger" id="btnWithdraw" type="button">确认取款</button>
+      <div class="status" id="stWithdraw"></div>
+    </div>
+  </div>
+
+  <div class="section-title">抵押</div>
+  <div class="row">
+    <div class="card">
+      <h2>存入抵押 depositCollateral</h2>
+      <p class="hint">增加可借额度（与抵押因子有关）。</p>
+      <label>金额（ETH）</label>
+      <input id="inCollateralIn" type="text" inputmode="decimal" placeholder="例如 0.2" autocomplete="off" />
+      <p class="hint">抵押与池内存款会计入合约 ETH 余额。</p>
+      <button id="btnCollateralIn" type="button">存入抵押</button>
+      <div class="status" id="stCollateralIn"></div>
+    </div>
+    <div class="card">
+      <h2>取出抵押 withdrawCollateral</h2>
+      <p class="hint">取出后须仍满足抵押率（相对当前债务）。</p>
+      <label>金额（ETH）</label>
+      <input id="inCollateralOut" type="text" inputmode="decimal" placeholder="例如 0.05" autocomplete="off" />
+      <p class="hint">若债务过高，交易会回滚。</p>
+      <button class="danger" id="btnCollateralOut" type="button">取出抵押</button>
+      <div class="status" id="stCollateralOut"></div>
+    </div>
+  </div>
+
+  <div class="section-title">借款与还款</div>
+  <div class="row">
+    <div class="card">
+      <h2>借款 borrow</h2>
+      <p class="hint">从池子借出 ETH；受抵押与可借上限约束。</p>
+      <label>金额（ETH）</label>
+      <input id="inBorrow" type="text" inputmode="decimal" placeholder="例如 0.03" autocomplete="off" />
+      <p class="hint">池子余额不足或超额借贷将失败。</p>
+      <button id="btnBorrow" type="button">确认借款</button>
+      <div class="status" id="stBorrow"></div>
+    </div>
+    <div class="card">
+      <h2>还款 repay</h2>
+      <p class="hint">用 ETH 偿还债务；多付部分会退回。</p>
+      <label>金额（ETH）</label>
+      <input id="inRepay" type="text" inputmode="decimal" placeholder="例如 0.02" autocomplete="off" />
+      <p class="hint">按当前应付债务扣款，剩余 wei 原路退回。</p>
+      <button class="secondary" id="btnRepay" type="button">确认还款</button>
+      <div class="status" id="stRepay"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>交易记录（链上事件）</h2>
+    <p class="hint">根据当前账户筛选合约事件；时间取自区块时间戳。首次从低区块扫描可能较慢，可在底部配置起始区块。</p>
+    <button class="secondary" id="btnLoadTx" type="button">加载 / 刷新交易记录</button>
+    <div class="status" id="txLoadStatus"></div>
+    <div style="overflow-x: auto; margin-top: 12px;">
+      <table class="tx-table">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>类型</th>
+            <th>金额 (ETH)</th>
+            <th>区块</th>
+            <th>交易</th>
+          </tr>
+        </thead>
+        <tbody id="txTableBody">
+          <tr><td colspan="5">连接钱包并加载后显示。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <details class="config-details" id="configDetails">
+    <summary>高级配置（合约地址、事件扫描）</summary>
+    <div class="config-inner">
+      <label>SimpleLending 合约地址</label>
+      <input id="contractAddress" placeholder="0x71C7656EC7ab88b098defB751B7401B5f6d8976F" autocomplete="off" />
+      <p class="hint">部署 <code>SimpleLending</code> 后粘贴；会保存到本机浏览器（localStorage）。</p>
+      <label>事件扫描起始区块（可选）</label>
+      <input id="fromBlockInput" placeholder="例如 0 或合约部署区块号" inputmode="numeric" autocomplete="off" />
+      <p class="hint">填较大起始区块可加快查询；留空或 0 表示从创世块扫（可能很慢）。</p>
+      <button class="secondary" id="btnSaveConfig" type="button">保存配置</button>
+      <span class="tag" id="configSavedTag" style="display: none;">已保存</span>
+    </div>
+  </details>
+
+  <script>
+    const LS_ADDR = "day23_simplelending_contract";
+    const LS_BLOCK = "day23_simplelending_from_block";
+
+    const CONTRACT_ABI = [
+      "function depositBalances(address) view returns (uint256)",
+      "function borrowBalances(address) view returns (uint256)",
+      "function collateralBalances(address) view returns (uint256)",
+      "function lastInterestAccrualTimestamp(address) view returns (uint256)",
+      "function interestRateBasisPoints() view returns (uint256)",
+      "function collateralFactorBasisPoints() view returns (uint256)",
+      "function deposit() payable",
+      "function withdraw(uint256 amount)",
+      "function depositCollateral() payable",
+      "function withdrawCollateral(uint256 amount)",
+      "function borrow(uint256 amount)",
+      "function repay() payable",
+      "function calculateInterestAccrued(address user) view returns (uint256)",
+      "function getMaxBorrowAmount(address user) view returns (uint256)",
+      "function getTotalLiquidity() view returns (uint256)",
+      "event Deposit(address indexed user, uint256 amount)",
+      "event Withdraw(address indexed user, uint256 amount)",
+      "event Borrow(address indexed user, uint256 amount)",
+      "event Repay(address indexed user, uint256 amount)",
+      "event CollateralDeposited(address indexed user, uint256 amount)",
+      "event CollateralWithdrawn(address indexed user, uint256 amount)"
+    ];
+
+    const EXPLORER_TX = {
+      "0x1": "https://etherscan.io/tx/",
+      "0x5": "https://goerli.etherscan.io/tx/",
+      "0xaa36a7": "https://sepolia.etherscan.io/tx/",
+      "0x13881": "https://mumbai.polygonscan.com/tx/",
+      "0x89": "https://polygonscan.com/tx/",
+      "0xa4b1": "https://arbiscan.io/tx/",
+      "0x2105": "https://basescan.org/tx/"
+    };
+
+    let provider = null;
+    let signer = null;
+    let contract = null;
+    let chainIdHex = null;
+
+    const contractAddressInput = document.getElementById("contractAddress");
+    const fromBlockInput = document.getElementById("fromBlockInput");
+
+    function loadStoredConfig() {
+      try {
+        const a = localStorage.getItem(LS_ADDR);
+        const b = localStorage.getItem(LS_BLOCK);
+        if (a) contractAddressInput.value = a;
+        if (b !== null && b !== "") fromBlockInput.value = b;
+      } catch (e) {}
+      updateContractDisplay();
+    }
+
+    function saveConfig() {
+      try {
+        localStorage.setItem(LS_ADDR, contractAddressInput.value.trim());
+        localStorage.setItem(LS_BLOCK, fromBlockInput.value.trim());
+      } catch (e) {}
+      const tag = document.getElementById("configSavedTag");
+      tag.style.display = "inline-block";
+      setTimeout(function () { tag.style.display = "none"; }, 2000);
+      updateContractDisplay();
+    }
+
+    function updateContractDisplay() {
+      const addr = contractAddressInput.value.trim();
+      const el = document.getElementById("contractAddrDisplay");
+      if (!addr) {
+        el.textContent = "未配置";
+        return;
+      }
+      el.textContent = addr.length > 22 ? addr.slice(0, 10) + "…" + addr.slice(-8) : addr;
+    }
+
+    function setGlobalStatus(msg) {
+      document.getElementById("globalStatus").textContent = msg || "";
+    }
+
+    function requireContractAddress() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) {
+        throw new Error("请先在页面底部「高级配置」中填写已部署的 SimpleLending 合约地址。");
+      }
+      if (!ethers.utils.isAddress(addr)) {
+        throw new Error("合约地址格式不正确。");
+      }
+      return ethers.utils.getAddress(addr);
+    }
+
+    function parseEthInput(id) {
+      const raw = document.getElementById(id).value.trim();
+      if (!raw) throw new Error("请输入金额。");
+      try {
+        return ethers.utils.parseEther(raw);
+      } catch (e) {
+        throw new Error("请输入合法的 ETH 数字（例如 0.1）。");
+      }
+    }
+
+    function getFromBlockBn() {
+      const t = fromBlockInput.value.trim();
+      if (!t) return ethers.BigNumber.from(0);
+      try {
+        const n = parseInt(t, 10);
+        if (Number.isNaN(n) || n < 0) return ethers.BigNumber.from(0);
+        return ethers.BigNumber.from(n);
+      } catch (e) {
+        return ethers.BigNumber.from(0);
+      }
+    }
+
+    async function refreshChainId() {
+      if (!window.ethereum) return;
+      try {
+        chainIdHex = await window.ethereum.request({ method: "eth_chainId" });
+      } catch (e) {
+        chainIdHex = null;
+      }
+    }
+
+    function txExplorerUrl(hash) {
+      if (!hash || !chainIdHex) return null;
+      const base = EXPLORER_TX[chainIdHex.toLowerCase()];
+      return base ? base + hash : null;
+    }
+
+    function updateAvatar(addr) {
+      const el = document.getElementById("avatarEl");
+      if (!addr || addr.length < 4) {
+        el.textContent = "—";
+        el.style.background = "#475569";
+        return;
+      }
+      const slice = (addr.slice(2, 6) + addr.slice(-2)).toUpperCase();
+      el.textContent = slice.slice(0, 4);
+      let h = 0;
+      for (let i = 2; i < addr.length; i++) h = (h * 17 + addr.charCodeAt(i)) % 360;
+      el.style.background = "hsl(" + h + ", 65%, 55%)";
+    }
+
+    function readOnlyContract() {
+      const addr = requireContractAddress();
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
+      return new ethers.Contract(addr, CONTRACT_ABI, provider);
+    }
+
+    async function ensureConnection() {
+      if (!window.ethereum) {
+        throw new Error("未检测到 MetaMask，请先安装扩展程序。");
+      }
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
+      if (!signer) {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const a = accounts[0] || "";
+        const tag = document.getElementById("connStatusTag");
+        tag.textContent = a ? "已连接: " + a.slice(0, 6) + "..." + a.slice(-4) : "已连接";
+        tag.classList.add("ok");
+        document.getElementById("userAddrDisplay").textContent = a || "—";
+        updateAvatar(a);
+      }
+      await refreshChainId();
+      const addr = requireContractAddress();
+      if (!contract || contract.address.toLowerCase() !== addr.toLowerCase()) {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+      }
+    }
+
+    async function refreshReads() {
+      const addr = requireContractAddress();
+      let c;
+      if (signer) {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+        c = contract;
+      } else {
+        c = readOnlyContract();
+      }
+      const me = signer ? await signer.getAddress() : null;
+
+      const [
+        ir,
+        cf,
+        dep,
+        col,
+        liq,
+        maxB,
+        debt,
+        principal
+      ] = await Promise.all([
+        c.interestRateBasisPoints(),
+        c.collateralFactorBasisPoints(),
+        me ? c.depositBalances(me) : ethers.constants.Zero,
+        me ? c.collateralBalances(me) : ethers.constants.Zero,
+        c.getTotalLiquidity(),
+        me ? c.getMaxBorrowAmount(me) : ethers.constants.Zero,
+        me ? c.calculateInterestAccrued(me) : ethers.constants.Zero,
+        me ? c.borrowBalances(me) : ethers.constants.Zero
+      ]);
+
+      document.getElementById("marketStatus").textContent =
+        "interestRateBasisPoints: " + ir.toString() + "（" + (Number(ir.toString()) / 100).toFixed(2) + "% 年化示意）\n" +
+        "collateralFactorBasisPoints: " + cf.toString() + "（" + (Number(cf.toString()) / 100).toFixed(2) + "% 抵押可借比例）";
+
+      if (me) {
+        document.getElementById("ovDeposit").textContent = ethers.utils.formatEther(dep) + " ETH";
+        document.getElementById("ovCollateral").textContent = ethers.utils.formatEther(col) + " ETH";
+        document.getElementById("ovDebt").textContent = ethers.utils.formatEther(debt) + " ETH";
+        document.getElementById("ovMaxBorrow").textContent = ethers.utils.formatEther(maxB) + " ETH";
+        document.getElementById("ovBorrowPrincipal").textContent = ethers.utils.formatEther(principal) + " ETH";
+      } else {
+        document.getElementById("ovDeposit").textContent = "（连接钱包）";
+        document.getElementById("ovCollateral").textContent = "（连接钱包）";
+        document.getElementById("ovDebt").textContent = "（连接钱包）";
+        document.getElementById("ovMaxBorrow").textContent = "（连接钱包）";
+        document.getElementById("ovBorrowPrincipal").textContent = "（连接钱包）";
+      }
+      document.getElementById("ovLiquidity").textContent = ethers.utils.formatEther(liq) + " ETH";
+    }
+
+    const EVENT_LABEL = {
+      Deposit: "存款",
+      Withdraw: "取款",
+      Borrow: "借款",
+      Repay: "还款",
+      CollateralDeposited: "抵押存入",
+      CollateralWithdrawn: "抵押取出"
+    };
+
+    async function loadTransactions() {
+      const st = document.getElementById("txLoadStatus");
+      const tbody = document.getElementById("txTableBody");
+      st.textContent = "正在查询事件...";
+      try {
+        if (!signer) {
+          throw new Error("请先连接钱包以查看本人交易记录。");
+        }
+        await ensureConnection();
+        const me = await signer.getAddress();
+        const c = contract;
+        const fb = getFromBlockBn();
+        const filters = [
+          { name: "Deposit", f: c.filters.Deposit(me) },
+          { name: "Withdraw", f: c.filters.Withdraw(me) },
+          { name: "Borrow", f: c.filters.Borrow(me) },
+          { name: "Repay", f: c.filters.Repay(me) },
+          { name: "CollateralDeposited", f: c.filters.CollateralDeposited(me) },
+          { name: "CollateralWithdrawn", f: c.filters.CollateralWithdrawn(me) }
+        ];
+        const all = [];
+        for (let i = 0; i < filters.length; i++) {
+          const logs = await c.queryFilter(filters[i].f, fb, "latest");
+          for (let j = 0; j < logs.length; j++) {
+            all.push({ log: logs[j], typeName: filters[i].name });
+          }
+        }
+        all.sort(function (a, b) {
+          const ba = a.log.blockNumber - b.log.blockNumber;
+          if (ba !== 0) return ba;
+          return a.log.logIndex - b.log.logIndex;
+        });
+
+        const blockCache = {};
+        async function getTs(blockNumber) {
+          const k = blockNumber.toString();
+          if (blockCache[k]) return blockCache[k];
+          const block = await provider.getBlock(blockNumber);
+          const ts = block ? block.timestamp : 0;
+          blockCache[k] = ts;
+          return ts;
+        }
+
+        tbody.innerHTML = "";
+        if (all.length === 0) {
+          tbody.innerHTML = "<tr><td colspan=\"5\">暂无事件（或起始区块过大）。</td></tr>";
+          st.textContent = "共 0 条记录。";
+          return;
+        }
+
+        for (let i = 0; i < all.length; i++) {
+          const item = all[i];
+          const log = item.log;
+          const parsed = c.interface.parseLog(log);
+          const amountWei = parsed.args.amount;
+          const ts = await getTs(log.blockNumber);
+          const timeStr = ts ? new Date(Number(ts) * 1000).toLocaleString() : "—";
+          const hash = log.transactionHash;
+          const url = txExplorerUrl(hash);
+          const hashCell = url
+            ? "<a href=\"" + url + "\" target=\"_blank\" rel=\"noopener\">" + hash.slice(0, 10) + "…</a>"
+            : hash;
+
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + timeStr + "</td>" +
+            "<td>" + EVENT_LABEL[item.typeName] + "</td>" +
+            "<td>" + ethers.utils.formatEther(amountWei) + "</td>" +
+            "<td>" + log.blockNumber.toString() + "</td>" +
+            "<td style=\"font-family:monospace;font-size:11px;\">" + hashCell + "</td>";
+          tbody.appendChild(tr);
+        }
+        st.textContent = "共 " + all.length + " 条记录。";
+      } catch (err) {
+        console.error(err);
+        st.textContent = "加载失败: " + (err.data?.message || err.message || err);
+        tbody.innerHTML = "<tr><td colspan=\"5\">加载失败</td></tr>";
+      }
+    }
+
+    document.getElementById("connectBtn").addEventListener("click", async function () {
+      try {
+        setGlobalStatus("连接中...");
+        await ensureConnection();
+        setGlobalStatus("已连接。");
+        await refreshReads();
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("失败: " + (err.message || err));
+      }
+    });
+
+    document.getElementById("refreshReadBtn").addEventListener("click", async function () {
+      try {
+        if (!window.ethereum) {
+          throw new Error("需要 MetaMask 以读取链上数据。");
+        }
+        requireContractAddress();
+        if (!signer) {
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+        } else {
+          await ensureConnection();
+        }
+        await refreshReads();
+        setGlobalStatus("只读数据已刷新。");
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("刷新失败: " + (err.message || err));
+      }
+    });
+
+    function bindTx(btnId, statusId, fn) {
+      document.getElementById(btnId).addEventListener("click", async function () {
+        const el = document.getElementById(statusId);
+        el.textContent = "";
+        try {
+          await ensureConnection();
+          await fn();
+          el.textContent += "\n链上已确认。";
+          await refreshReads();
+          await loadTransactions();
+        } catch (err) {
+          console.error(err);
+          el.textContent = "失败: " + (err.data?.message || err.reason || err.message || err);
+        }
+      });
+    }
+
+    bindTx("btnDeposit", "stDeposit", async function () {
+      const v = parseEthInput("inDeposit");
+      const el = document.getElementById("stDeposit");
+      el.textContent = "发送 deposit，value=" + v.toString() + " wei ...";
+      const tx = await contract.deposit({ value: v });
+      el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+    });
+
+    bindTx("btnWithdraw", "stWithdraw", async function () {
+      const v = parseEthInput("inWithdraw");
+      const el = document.getElementById("stWithdraw");
+      el.textContent = "发送 withdraw ...";
+      const tx = await contract.withdraw(v);
+      el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+    });
+
+    bindTx("btnCollateralIn", "stCollateralIn", async function () {
+      const v = parseEthInput("inCollateralIn");
+      const el = document.getElementById("stCollateralIn");
+      el.textContent = "发送 depositCollateral ...";
+      const tx = await contract.depositCollateral({ value: v });
+      el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+    });
+
+    bindTx("btnCollateralOut", "stCollateralOut", async function () {
+      const v = parseEthInput("inCollateralOut");
+      const el = document.getElementById("stCollateralOut");
+      el.textContent = "发送 withdrawCollateral ...";
+      const tx = await contract.withdrawCollateral(v);
+      el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+    });
+
+    bindTx("btnBorrow", "stBorrow", async function () {
+      const v = parseEthInput("inBorrow");
+      const el = document.getElementById("stBorrow");
+      el.textContent = "发送 borrow ...";
+      const tx = await contract.borrow(v);
+      el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+    });
+
+    bindTx("btnRepay", "stRepay", async function () {
+      const v = parseEthInput("inRepay");
+      const el = document.getElementById("stRepay");
+      el.textContent = "发送 repay ...";
+      const tx = await contract.repay({ value: v });
+      el.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+    });
+
+    document.getElementById("btnLoadTx").addEventListener("click", function () {
+      loadTransactions();
+    });
+
+    document.getElementById("btnSaveConfig").addEventListener("click", function () {
+      saveConfig();
+    });
+
+    contractAddressInput.addEventListener("input", updateContractDisplay);
+
+    loadStoredConfig();
+  </script>
+</body>
+</html>

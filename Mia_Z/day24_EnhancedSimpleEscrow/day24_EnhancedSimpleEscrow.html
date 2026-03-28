@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day24 EnhancedSimpleEscrow 银行式托管面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 16px;
+      padding-bottom: 48px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+    button.danger {
+      background: linear-gradient(to right, #f97316, #dc2626);
+      color: #fef2f2;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .row > .card {
+      flex: 1 1 280px;
+      margin-bottom: 0;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+      vertical-align: middle;
+    }
+    .tag.ok {
+      border-color: #22c55e;
+      color: #86efac;
+    }
+    .tag.state-awaiting {
+      border-color: #38bdf8;
+      color: #7dd3fc;
+    }
+    .tag.state-disputed {
+      border-color: #f97316;
+      color: #fdba74;
+    }
+    .tag.state-complete {
+      border-color: #a78bfa;
+      color: #ddd6fe;
+    }
+    .tag.state-cancelled {
+      border-color: #dc2626;
+      color: #fca5a5;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 0 0 10px;
+      line-height: 1.5;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .profile-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #020617;
+      flex-shrink: 0;
+      border: 2px solid rgba(148, 163, 184, 0.4);
+      background: #475569;
+      user-select: none;
+    }
+    .profile-meta {
+      flex: 1;
+      min-width: 200px;
+    }
+    .profile-meta .addr {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 13px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+    .contract-pill {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+    .contract-pill code {
+      font-size: 11px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .kv {
+      background: #020617;
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid #334155;
+    }
+    .kv .k {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .kv .v {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f1f5f9;
+      word-break: break-word;
+    }
+
+    table.tx-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.tx-table th,
+    table.tx-table td {
+      border-bottom: 1px solid #334155;
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.tx-table th {
+      color: #94a3b8;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    table.tx-table tr:nth-child(even) td {
+      background: rgba(2, 6, 23, 0.5);
+    }
+    table.tx-table a {
+      color: #38bdf8;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      margin: 12px 0 8px;
+    }
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    .config-details {
+      margin-top: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0;
+      overflow: hidden;
+    }
+    .config-details summary {
+      cursor: pointer;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #cbd5e1;
+      list-style: none;
+    }
+    .config-details summary::-webkit-details-marker {
+      display: none;
+    }
+    .config-details[open] summary {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .config-inner {
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Day24 EnhancedSimpleEscrow 银行式托管面板</h1>
+  <p class="hint">
+    与 <code>day24_EnhancedSimpleEscrow.sol</code> 配套：钱包连接后可查看 buyer/seller/arbiter、托管状态与倒计时，并执行 deposit / confirmDelivery / raiseDispute / resolveDispute / cancelAfterTimeout / cancelMutual。<br />
+    技术栈：原生 HTML + JS，ethers v5（CDN）。底部可折叠区填写已部署合约地址。
+  </p>
+
+  <div class="card">
+    <h2>用户与连接</h2>
+    <div class="profile-row">
+      <div class="avatar" id="avatarEl">—</div>
+      <div class="profile-meta">
+        <div>
+          <strong>当前账户</strong>
+          <span class="tag" id="connStatusTag">未连接</span>
+        </div>
+        <div class="addr" id="userAddrDisplay">连接钱包后显示地址。</div>
+        <div class="contract-pill">
+          合约：<code id="contractAddrDisplay">未配置</code>
+        </div>
+        <div style="margin-top: 8px;">
+          身份：<span class="tag" id="myRoleTag">—</span>
+        </div>
+      </div>
+      <div>
+        <button id="connectBtn" type="button">连接 MetaMask</button>
+        <button class="secondary" id="refreshReadBtn" type="button">仅刷新只读数据</button>
+      </div>
+    </div>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <div class="row">
+    <div class="card" style="flex: 2 1 420px;">
+      <h2>账户总览 / 合约状态</h2>
+      <div class="kv-grid" id="overviewGrid">
+        <div class="kv"><div class="k">托管状态 state</div><div class="v"><span class="tag" id="ovStateTag">—</span></div></div>
+        <div class="kv"><div class="k">托管金额 amount</div><div class="v" id="ovAmount">—</div></div>
+        <div class="kv"><div class="k">合约 ETH 余额</div><div class="v" id="ovContractBalance">—</div></div>
+        <div class="kv"><div class="k">depositTime</div><div class="v" id="ovDepositTime">—</div></div>
+        <div class="kv"><div class="k">deliveryTimeout（秒）</div><div class="v" id="ovDeliveryTimeout">—</div></div>
+        <div class="kv"><div class="k">getTimeLeft（秒）</div><div class="v" id="ovTimeLeft">—</div></div>
+      </div>
+      <div style="margin-top: 12px;" class="hint">
+        提示：`getTimeLeft()` 在状态不是 `AWAITING_DELIVERY` 或已超时后会返回 0。
+      </div>
+    </div>
+    <div class="card" style="flex: 1 1 260px;">
+      <h2>三方角色画像</h2>
+      <div class="kv-grid">
+        <div class="kv"><div class="k">buyer</div><div class="v" id="ovBuyer">—</div></div>
+        <div class="kv"><div class="k">seller</div><div class="v" id="ovSeller">—</div></div>
+        <div class="kv"><div class="k">arbiter</div><div class="v" id="ovArbiter">—</div></div>
+      </div>
+      <div class="hint" style="margin-top: 12px;">
+        你可以把页面当作“用户导向”的银行面板：按钮会根据你在合约中的角色以及 state 自动启用/禁用。
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">可操作功能区</div>
+
+  <div class="row">
+    <div class="card">
+      <h2>Buyer 操作</h2>
+      <div class="hint">仅当你是合约 `buyer` 且 state 满足要求时，下面按钮才会启用。</div>
+
+      <label>发送 deposit 金额（ETH）</label>
+      <input id="inDeposit" type="text" inputmode="decimal" placeholder="例如 0.1" autocomplete="off" />
+      <div class="hint">该金额会作为 `msg.value` 发送；合约要求 `msg.value > 0`。</div>
+      <button id="btnDeposit" type="button">确认 deposit</button>
+      <div class="status" id="stDeposit"></div>
+
+      <button class="secondary" id="btnConfirmDelivery" type="button">buyer：confirmDelivery</button>
+      <div class="status" id="stConfirmDelivery"></div>
+
+      <button class="danger" id="btnCancelAfterTimeout" type="button">buyer：cancelAfterTimeout</button>
+      <div class="status" id="stCancelAfterTimeout"></div>
+    </div>
+
+    <div class="card">
+      <h2>Seller / 通用操作</h2>
+      <div class="hint">raiseDispute 支持 buyer/seller 发起；cancelMutual 支持 buyer/seller 双方。</div>
+
+      <button class="secondary" id="btnRaiseDispute" type="button">raiseDispute（buyer/seller）</button>
+      <div class="status" id="stRaiseDispute"></div>
+
+      <button class="danger" id="btnCancelMutual" type="button">cancelMutual（buyer/seller）</button>
+      <div class="status" id="stCancelMutual"></div>
+    </div>
+
+    <div class="card">
+      <h2>Arbiter 操作</h2>
+      <div class="hint">仅当你是合约 `arbiter` 且 state = `DISPUTED` 时，resolveDispute 才可用。</div>
+
+      <label>resolveDispute：释放给谁？</label>
+      <select id="resolveToSellerSelect">
+        <option value="true" selected>释放给卖方（_releaseToSeller=true）</option>
+        <option value="false">释放给买方（_releaseToSeller=false）</option>
+      </select>
+      <div class="hint">合约会把托管金额从合约转给对应接收方。</div>
+
+      <button id="btnResolveDispute" type="button">resolveDispute</button>
+      <div class="status" id="stResolveDispute"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>交易记录（链上事件）</h2>
+    <p class="hint">
+      根据当前账户导向：只展示与该地址相关的事件（按 indexed 参数过滤 + 少量事件解析后二次筛选）。
+      时间取自区块时间戳；首次从低区块扫描可能较慢，可在底部配置起始区块。
+    </p>
+    <button class="secondary" id="btnLoadTx" type="button">加载 / 刷新交易记录</button>
+    <div class="status" id="txLoadStatus"></div>
+    <div style="overflow-x: auto; margin-top: 12px;">
+      <table class="tx-table">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>类型</th>
+            <th>金额 (ETH)</th>
+            <th>区块</th>
+            <th>交易</th>
+          </tr>
+        </thead>
+        <tbody id="txTableBody">
+          <tr><td colspan="5">连接钱包并加载后显示。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <details class="config-details" id="configDetails">
+    <summary>高级配置（合约地址、事件扫描）</summary>
+    <div class="config-inner">
+      <label>EnhancedSimpleEscrow 合约地址</label>
+      <input id="contractAddress" placeholder="0x..." autocomplete="off" />
+      <div class="hint">
+        部署后粘贴；会保存到本机浏览器（localStorage）。用于读取合约状态与查询事件。
+      </div>
+
+      <label>事件扫描起始区块（可选）</label>
+      <input id="fromBlockInput" placeholder="例如 0 或部署区块号" inputmode="numeric" autocomplete="off" />
+      <div class="hint">
+        填较大起始区块可加快查询；留空或 0 表示从创世块扫（可能很慢）。
+      </div>
+
+      <button class="secondary" id="btnSaveConfig" type="button">保存配置</button>
+      <span class="tag" id="configSavedTag" style="display: none;">已保存</span>
+    </div>
+  </details>
+
+  <script>
+    const LS_ADDR = "day24_escrow_contract";
+    const LS_BLOCK = "day24_escrow_from_block";
+
+    const EscrowState = {
+      AWAITING_PAYMENT: 0,
+      AWAITING_DELIVERY: 1,
+      COMPLETE: 2,
+      DISPUTED: 3,
+      CANCELLED: 4
+    };
+
+    const STATE_LABEL = {
+      0: { name: "AWAITING_PAYMENT", tagClass: "state-awaiting" },
+      1: { name: "AWAITING_DELIVERY", tagClass: "state-awaiting" },
+      2: { name: "COMPLETE", tagClass: "state-complete" },
+      3: { name: "DISPUTED", tagClass: "state-disputed" },
+      4: { name: "CANCELLED", tagClass: "state-cancelled" }
+    };
+
+    const EVENT_LABEL = {
+      PaymentDeposited: "存款 deposit",
+      DeliveryConfirmed: "交付确认 confirmDelivery",
+      DisputeRaised: "提出争议 raiseDispute",
+      DisputeResolved: "裁决争议 resolveDispute",
+      EscrowCancelled: "取消 EscrowCancelled",
+      DeliveryTimeoutReached: "超时触发 cancelAfterTimeout"
+    };
+
+    const CONTRACT_ABI = [
+      "function buyer() view returns (address)",
+      "function seller() view returns (address)",
+      "function arbiter() view returns (address)",
+      "function amount() view returns (uint256)",
+      "function state() view returns (uint8)",
+      "function depositTime() view returns (uint256)",
+      "function deliveryTimeout() view returns (uint256)",
+      "function getTimeLeft() external view returns (uint256)",
+      "function deposit() payable",
+      "function confirmDelivery() external",
+      "function raiseDispute() external",
+      "function resolveDispute(bool _releaseToSeller) external",
+      "function cancelAfterTimeout() external",
+      "function cancelMutual() external",
+      "event PaymentDeposited(address indexed buyer, uint256 amount)",
+      "event DeliveryConfirmed(address indexed buyer, address indexed seller, uint256 amount)",
+      "event DisputeRaised(address indexed initiator)",
+      "event DisputeResolved(address indexed arbiter, address recipient, uint256 amount)",
+      "event EscrowCancelled(address indexed initiator)",
+      "event DeliveryTimeoutReached(address indexed buyer)"
+    ];
+
+    const EXPLORER_TX = {
+      "0x1": "https://etherscan.io/tx/",
+      "0x5": "https://goerli.etherscan.io/tx/",
+      "0xaa36a7": "https://sepolia.etherscan.io/tx/",
+      "0x13881": "https://mumbai.polygonscan.com/tx/",
+      "0x89": "https://polygonscan.com/tx/",
+      "0xa4b1": "https://arbiscan.io/tx/",
+      "0x2105": "https://basescan.org/tx/"
+    };
+
+    let provider = null;
+    let signer = null;
+    let contract = null;
+    let chainIdHex = null;
+
+    const contractAddressInput = document.getElementById("contractAddress");
+    const fromBlockInput = document.getElementById("fromBlockInput");
+
+    const connStatusTag = document.getElementById("connStatusTag");
+    const userAddrDisplay = document.getElementById("userAddrDisplay");
+    const avatarEl = document.getElementById("avatarEl");
+    const globalStatus = document.getElementById("globalStatus");
+    const contractAddrDisplay = document.getElementById("contractAddrDisplay");
+    const myRoleTag = document.getElementById("myRoleTag");
+
+    const ovStateTag = document.getElementById("ovStateTag");
+    const ovAmount = document.getElementById("ovAmount");
+    const ovContractBalance = document.getElementById("ovContractBalance");
+    const ovDepositTime = document.getElementById("ovDepositTime");
+    const ovDeliveryTimeout = document.getElementById("ovDeliveryTimeout");
+    const ovTimeLeft = document.getElementById("ovTimeLeft");
+    const ovBuyer = document.getElementById("ovBuyer");
+    const ovSeller = document.getElementById("ovSeller");
+    const ovArbiter = document.getElementById("ovArbiter");
+
+    const resolveToSellerSelect = document.getElementById("resolveToSellerSelect");
+
+    const btnDeposit = document.getElementById("btnDeposit");
+    const btnConfirmDelivery = document.getElementById("btnConfirmDelivery");
+    const btnRaiseDispute = document.getElementById("btnRaiseDispute");
+    const btnResolveDispute = document.getElementById("btnResolveDispute");
+    const btnCancelAfterTimeout = document.getElementById("btnCancelAfterTimeout");
+    const btnCancelMutual = document.getElementById("btnCancelMutual");
+
+    const stDeposit = document.getElementById("stDeposit");
+    const stConfirmDelivery = document.getElementById("stConfirmDelivery");
+    const stRaiseDispute = document.getElementById("stRaiseDispute");
+    const stResolveDispute = document.getElementById("stResolveDispute");
+    const stCancelAfterTimeout = document.getElementById("stCancelAfterTimeout");
+    const stCancelMutual = document.getElementById("stCancelMutual");
+
+    const txLoadStatus = document.getElementById("txLoadStatus");
+    const txTableBody = document.getElementById("txTableBody");
+
+    const connectBtn = document.getElementById("connectBtn");
+    const refreshReadBtn = document.getElementById("refreshReadBtn");
+    const btnLoadTx = document.getElementById("btnLoadTx");
+    const btnSaveConfig = document.getElementById("btnSaveConfig");
+    const configSavedTag = document.getElementById("configSavedTag");
+
+    function setGlobalStatus(msg) {
+      globalStatus.textContent = msg || "";
+    }
+
+    function shortAddr(addr) {
+      if (!addr) return "—";
+      return addr.length > 16 ? addr.slice(0, 10) + "…" + addr.slice(-6) : addr;
+    }
+
+    function updateAvatar(addr) {
+      if (!addr || addr.length < 4) {
+        avatarEl.textContent = "—";
+        avatarEl.style.background = "#475569";
+        return;
+      }
+      avatarEl.textContent = (addr.slice(2, 6) + addr.slice(-2)).toUpperCase().slice(0, 4);
+      let h = 0;
+      for (let i = 2; i < addr.length; i++) h = (h * 17 + addr.charCodeAt(i)) % 360;
+      avatarEl.style.background = "hsl(" + h + ", 65%, 55%)";
+    }
+
+    function updateContractDisplay() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) {
+        contractAddrDisplay.textContent = "未配置";
+        return;
+      }
+      try {
+        contractAddrDisplay.textContent = shortAddr(ethers.utils.getAddress(addr));
+      } catch (e) {
+        // 用户输入过程中可能是未完成地址，避免直接抛错打断输入
+        contractAddrDisplay.textContent = shortAddr(addr);
+      }
+    }
+
+    function setBtnState(btn, enabled, reason) {
+      btn.disabled = !enabled;
+      if (!enabled && reason) btn.title = reason;
+      else btn.removeAttribute("title");
+    }
+
+    function formatSeconds(secBn) {
+      const sStr = secBn.toString();
+      const total = Number(sStr);
+      if (!Number.isFinite(total)) return sStr + " 秒";
+      const days = Math.floor(total / 86400);
+      const hours = Math.floor((total % 86400) / 3600);
+      const mins = Math.floor((total % 3600) / 60);
+      const secs = Math.floor(total % 60);
+      const parts = [];
+      if (days > 0) parts.push(days + "天");
+      if (hours > 0) parts.push(hours + "小时");
+      if (mins > 0) parts.push(mins + "分钟");
+      parts.push(secs + "秒");
+      return parts.join(" ");
+    }
+
+    function formatUnixTs(tsBn) {
+      if (!tsBn || tsBn.isZero()) return "—";
+      const ts = Number(tsBn.toString());
+      if (!Number.isFinite(ts)) return tsBn.toString();
+      return new Date(ts * 1000).toLocaleString();
+    }
+
+    function stateToLabel(stateNum) {
+      const def = STATE_LABEL[stateNum];
+      if (!def) return { name: "未知", tagClass: "" };
+      return def;
+    }
+
+    function loadStoredConfig() {
+      try {
+        const a = localStorage.getItem(LS_ADDR);
+        const b = localStorage.getItem(LS_BLOCK);
+        if (a) contractAddressInput.value = a;
+        if (b !== null && b !== "") fromBlockInput.value = b;
+      } catch (e) {}
+      updateContractDisplay();
+    }
+
+    function saveConfig() {
+      try {
+        localStorage.setItem(LS_ADDR, contractAddressInput.value.trim());
+        localStorage.setItem(LS_BLOCK, fromBlockInput.value.trim());
+      } catch (e) {}
+      configSavedTag.style.display = "inline-block";
+      setTimeout(function () { configSavedTag.style.display = "none"; }, 2000);
+      updateContractDisplay();
+    }
+
+    function requireContractAddress() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) throw new Error("请先在页面底部「高级配置」填写已部署的合约地址。");
+      if (!ethers.utils.isAddress(addr)) throw new Error("合约地址格式不正确。");
+      return ethers.utils.getAddress(addr);
+    }
+
+    function parseEthInput(id) {
+      const raw = document.getElementById(id).value.trim();
+      if (!raw) throw new Error("请输入金额。");
+      try {
+        return ethers.utils.parseEther(raw);
+      } catch (e) {
+        throw new Error("请输入合法的 ETH 数字（例如 0.1）。");
+      }
+    }
+
+    function getFromBlockBn() {
+      const t = fromBlockInput.value.trim();
+      if (!t) return ethers.BigNumber.from(0);
+      try {
+        const n = parseInt(t, 10);
+        if (Number.isNaN(n) || n < 0) return ethers.BigNumber.from(0);
+        return ethers.BigNumber.from(n);
+      } catch (e) {
+        return ethers.BigNumber.from(0);
+      }
+    }
+
+    async function refreshChainId() {
+      if (!window.ethereum) return;
+      try {
+        chainIdHex = await window.ethereum.request({ method: "eth_chainId" });
+      } catch (e) {
+        chainIdHex = null;
+      }
+    }
+
+    function txExplorerUrl(hash) {
+      if (!hash || !chainIdHex) return null;
+      const base = EXPLORER_TX[chainIdHex.toLowerCase()];
+      return base ? base + hash : null;
+    }
+
+    function readOnlyContract() {
+      const addr = requireContractAddress();
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      return new ethers.Contract(addr, CONTRACT_ABI, provider);
+    }
+
+    async function ensureConnection() {
+      if (!window.ethereum) throw new Error("未检测到 MetaMask，请先安装扩展程序。");
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      if (!signer) {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const a = accounts[0] || "";
+        connStatusTag.textContent = a ? ("已连接: " + a.slice(0, 6) + "..." + a.slice(-4)) : "已连接";
+        connStatusTag.classList.add("ok");
+        userAddrDisplay.textContent = a || "—";
+        updateAvatar(a);
+      }
+      await refreshChainId();
+      const addr = requireContractAddress();
+      if (!contract || contract.address.toLowerCase() !== addr.toLowerCase()) {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+      }
+    }
+
+    async function refreshReads() {
+      const addr = requireContractAddress();
+      let c;
+      if (signer) {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+        c = contract;
+      } else {
+        c = readOnlyContract();
+      }
+
+      const me = signer ? await signer.getAddress() : null;
+      const [
+        buyerAddr,
+        sellerAddr,
+        arbiterAddr,
+        amountBn,
+        stateBn,
+        depositTimeBn,
+        deliveryTimeoutBn,
+        timeLeftBn
+      ] = await Promise.all([
+        c.buyer(),
+        c.seller(),
+        c.arbiter(),
+        c.amount(),
+        c.state(),
+        c.depositTime(),
+        c.deliveryTimeout(),
+        c.getTimeLeft()
+      ]);
+
+      const contractBalance = provider ? await provider.getBalance(addr) : ethers.constants.Zero;
+      const stateNum = Number(stateBn.toString());
+      const st = stateToLabel(stateNum);
+
+      ovStateTag.textContent = st.name;
+      ovStateTag.className = "tag" + (st.tagClass ? (" " + st.tagClass) : "");
+
+      ovAmount.textContent = ethers.utils.formatEther(amountBn) + " ETH";
+      ovContractBalance.textContent = ethers.utils.formatEther(contractBalance) + " ETH";
+      ovDepositTime.textContent = formatUnixTs(depositTimeBn);
+      ovDeliveryTimeout.textContent = deliveryTimeoutBn.toString();
+      ovTimeLeft.textContent = formatSeconds(timeLeftBn);
+
+      ovBuyer.textContent = shortAddr(buyerAddr);
+      ovSeller.textContent = shortAddr(sellerAddr);
+      ovArbiter.textContent = shortAddr(arbiterAddr);
+
+      // 计算你当前的合约身份
+      let role = "无关地址";
+      if (me) {
+        if (me.toLowerCase() === buyerAddr.toLowerCase()) role = "buyer";
+        else if (me.toLowerCase() === sellerAddr.toLowerCase()) role = "seller";
+        else if (me.toLowerCase() === arbiterAddr.toLowerCase()) role = "arbiter";
+      }
+      myRoleTag.textContent = role;
+      myRoleTag.className = "tag";
+      if (role === "buyer") myRoleTag.classList.add("state-awaiting");
+      else if (role === "seller") myRoleTag.classList.add("state-complete");
+      else if (role === "arbiter") myRoleTag.classList.add("state-disputed");
+
+      // 按 state/角色启用禁用按钮
+      const isBuyer = me && me.toLowerCase() === buyerAddr.toLowerCase();
+      const isSeller = me && me.toLowerCase() === sellerAddr.toLowerCase();
+      const isArbiter = me && me.toLowerCase() === arbiterAddr.toLowerCase();
+
+      const isAwaitingPayment = stateNum === EscrowState.AWAITING_PAYMENT;
+      const isAwaitingDelivery = stateNum === EscrowState.AWAITING_DELIVERY;
+      const isDisputed = stateNum === EscrowState.DISPUTED;
+      const isCancelled = stateNum === EscrowState.CANCELLED;
+
+      // 即使 cancelled 也应禁用所有状态变更按钮
+      const canOperate = !isCancelled;
+
+      setBtnState(
+        btnDeposit,
+        Boolean(me && canOperate && isBuyer && isAwaitingPayment),
+        "需要你是 buyer 且 state = AWAITING_PAYMENT"
+      );
+      setBtnState(
+        btnConfirmDelivery,
+        Boolean(me && canOperate && isBuyer && isAwaitingDelivery),
+        "需要你是 buyer 且 state = AWAITING_DELIVERY"
+      );
+      setBtnState(
+        btnRaiseDispute,
+        Boolean(me && canOperate && (isBuyer || isSeller) && isAwaitingDelivery),
+        "需要你是 buyer/seller 且 state = AWAITING_DELIVERY"
+      );
+      setBtnState(
+        btnResolveDispute,
+        Boolean(me && canOperate && isArbiter && isDisputed),
+        "需要你是 arbiter 且 state = DISPUTED"
+      );
+      const timeLeftZero = timeLeftBn.isZero();
+      setBtnState(
+        btnCancelAfterTimeout,
+        Boolean(me && canOperate && isBuyer && isAwaitingDelivery && timeLeftZero),
+        "需要你是 buyer 且已超时（getTimeLeft=0 且 state=AWAITING_DELIVERY）"
+      );
+      setBtnState(
+        btnCancelMutual,
+        Boolean(me && canOperate && (isBuyer || isSeller) && (isAwaitingPayment || isAwaitingDelivery)),
+        "需要你是 buyer/seller 且 state = AWAITING_PAYMENT 或 AWAITING_DELIVERY"
+      );
+
+      // 若未连接，提示交易记录请先连接
+      if (!me) {
+        txTableBody.innerHTML = "<tr><td colspan=\"5\">连接钱包后显示与你相关的事件。</td></tr>";
+      }
+    }
+
+    function renderEventRow({ typeName, log, args }) {
+      const blockNumber = log.blockNumber.toString();
+      const hash = log.transactionHash;
+      const url = txExplorerUrl(hash);
+      const hashCell = url
+        ? "<a href=\"" + url + "\" target=\"_blank\" rel=\"noopener\">" + hash.slice(0, 10) + "…</a>"
+        : hash;
+
+      let amountEth = "—";
+      if (typeName === "PaymentDeposited") amountEth = ethers.utils.formatEther(args.amount) + "";
+      if (typeName === "DeliveryConfirmed") amountEth = ethers.utils.formatEther(args.amount) + "";
+      if (typeName === "DisputeResolved") amountEth = ethers.utils.formatEther(args.amount) + "";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td data-ts=\"\">" + "..." + "</td>" +
+        "<td>" + EVENT_LABEL[typeName] + "</td>" +
+        "<td>" + (amountEth === "—" ? "—" : amountEth + " ETH") + "</td>" +
+        "<td>" + blockNumber + "</td>" +
+        "<td style=\"font-family:monospace;font-size:11px;\">" + hashCell + "</td>";
+      return tr;
+    }
+
+    async function loadTransactions() {
+      const st = txLoadStatus;
+      st.textContent = "正在查询事件...";
+      txTableBody.innerHTML = "";
+      try {
+        if (!signer) throw new Error("请先连接钱包以查看与你相关的交易记录。");
+        await ensureConnection();
+        const me = await signer.getAddress();
+
+        requireContractAddress();
+        const c = contract;
+        const fb = getFromBlockBn();
+
+        // 先拉 buyer/seller/arbiter，用于更精确过滤（尽量减少无关日志）。
+        const [buyerAddr, sellerAddr, arbiterAddr] = await Promise.all([
+          c.buyer(),
+          c.seller(),
+          c.arbiter()
+        ]);
+
+        const filters = [
+          { typeName: "PaymentDeposited", f: c.filters.PaymentDeposited(me) },
+          { typeName: "DisputeRaised", f: c.filters.DisputeRaised(me) },
+          { typeName: "EscrowCancelled", f: c.filters.EscrowCancelled(me) },
+          { typeName: "DeliveryTimeoutReached", f: (me.toLowerCase() === buyerAddr.toLowerCase()) ? c.filters.DeliveryTimeoutReached(me) : null },
+
+          // DeliveryConfirmed：两端索引 buyer/seller
+          { typeName: "DeliveryConfirmed", f: (me.toLowerCase() === buyerAddr.toLowerCase()) ? c.filters.DeliveryConfirmed(me, null, null) : null },
+          { typeName: "DeliveryConfirmed", f: (me.toLowerCase() === sellerAddr.toLowerCase()) ? c.filters.DeliveryConfirmed(null, me, null) : null },
+
+          // DisputeResolved：只有 arbiter indexed，所以用 arbiterAddr 过滤后再解析 recipient=me
+          { typeName: "DisputeResolved", f: c.filters.DisputeResolved(arbiterAddr, null, null) }
+        ].filter(x => x.f);
+
+        const all = [];
+        const seen = new Set();
+
+        for (let i = 0; i < filters.length; i++) {
+          const item = filters[i];
+          const logs = await c.queryFilter(item.f, fb, "latest");
+          for (let j = 0; j < logs.length; j++) {
+            const log = logs[j];
+            const key = log.transactionHash + "-" + log.logIndex;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            all.push({ log, typeName: item.typeName });
+          }
+        }
+
+        // 对 DisputeResolved 做二次筛选：recipient == me
+        const filtered = [];
+        for (let i = 0; i < all.length; i++) {
+          const it = all[i];
+          const parsed = c.interface.parseLog(it.log);
+          if (it.typeName === "DisputeResolved") {
+            const recipient = parsed.args.recipient;
+            if (recipient && recipient.toLowerCase() !== me.toLowerCase()) continue;
+          }
+          filtered.push({ log: it.log, typeName: it.typeName, args: parsed.args });
+        }
+
+        filtered.sort(function (a, b) {
+          const ba = a.log.blockNumber - b.log.blockNumber;
+          if (ba !== 0) return ba;
+          return a.log.logIndex - b.log.logIndex;
+        });
+
+        const blockCache = {};
+        async function getTs(blockNumber) {
+          const k = blockNumber.toString();
+          if (blockCache[k] !== undefined) return blockCache[k];
+          const block = await provider.getBlock(blockNumber);
+          const ts = block ? block.timestamp : 0;
+          blockCache[k] = ts;
+          return ts;
+        }
+
+        if (filtered.length === 0) {
+          txTableBody.innerHTML = "<tr><td colspan=\"5\">暂无事件（或起始区块过大）。</td></tr>";
+          st.textContent = "共 0 条记录。";
+          return;
+        }
+
+        txTableBody.innerHTML = "";
+        for (let i = 0; i < filtered.length; i++) {
+          const it = filtered[i];
+          const ts = await getTs(it.log.blockNumber);
+          const timeStr = ts ? new Date(Number(ts) * 1000).toLocaleString() : "—";
+          const tr = renderEventRow({ typeName: it.typeName, log: it.log, args: it.args });
+          tr.children[0].textContent = timeStr;
+          txTableBody.appendChild(tr);
+        }
+
+        st.textContent = "共 " + filtered.length + " 条记录。";
+      } catch (err) {
+        console.error(err);
+        st.textContent = "加载失败: " + (err.data?.message || err.reason || err.message || err);
+        txTableBody.innerHTML = "<tr><td colspan=\"5\">加载失败</td></tr>";
+      }
+    }
+
+    async function bindTx(btnEl, statusEl, fnName, txFn) {
+      btnEl.addEventListener("click", async function () {
+        statusEl.textContent = "";
+        try {
+          await ensureConnection();
+          statusEl.textContent = "发送 " + fnName + " ...";
+          const tx = await txFn();
+          statusEl.textContent += "\\nTX: " + tx.hash + "，等待确认...";
+          const receipt = await tx.wait();
+          statusEl.textContent += "\\n已确认，区块: " + receipt.blockNumber;
+          await refreshReads();
+          await loadTransactions();
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "失败: " + (err.data?.message || err.reason || err.message || err);
+        }
+      });
+    }
+
+    bindTx(btnDeposit, stDeposit, "deposit", async function () {
+      const v = parseEthInput("inDeposit");
+      return contract.deposit({ value: v });
+    });
+
+    bindTx(btnConfirmDelivery, stConfirmDelivery, "confirmDelivery", async function () {
+      return contract.confirmDelivery();
+    });
+
+    bindTx(btnRaiseDispute, stRaiseDispute, "raiseDispute", async function () {
+      return contract.raiseDispute();
+    });
+
+    bindTx(btnResolveDispute, stResolveDispute, "resolveDispute", async function () {
+      const releaseToSeller = resolveToSellerSelect.value === "true";
+      return contract.resolveDispute(releaseToSeller);
+    });
+
+    bindTx(btnCancelAfterTimeout, stCancelAfterTimeout, "cancelAfterTimeout", async function () {
+      return contract.cancelAfterTimeout();
+    });
+
+    bindTx(btnCancelMutual, stCancelMutual, "cancelMutual", async function () {
+      return contract.cancelMutual();
+    });
+
+    connectBtn.addEventListener("click", async function () {
+      try {
+        setGlobalStatus("连接中...");
+        await ensureConnection();
+        setGlobalStatus("已连接，可查看托管状态并执行操作。");
+        await refreshReads();
+        await loadTransactions();
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("失败: " + (err.message || err));
+      }
+    });
+
+    refreshReadBtn.addEventListener("click", async function () {
+      try {
+        if (!window.ethereum) throw new Error("需要 MetaMask 以读取链上数据。");
+        requireContractAddress();
+        if (!signer) {
+          // 未连接但可读取（只读），确保 provider 存在
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+        } else {
+          await ensureConnection();
+        }
+        await refreshReads();
+        setGlobalStatus("只读数据已刷新。");
+      } catch (err) {
+        console.error(err);
+        setGlobalStatus("刷新失败: " + (err.message || err));
+      }
+    });
+
+    btnLoadTx.addEventListener("click", async function () {
+      await loadTransactions();
+    });
+
+    btnSaveConfig.addEventListener("click", function () {
+      saveConfig();
+    });
+
+    contractAddressInput.addEventListener("input", function () {
+      updateContractDisplay();
+    });
+
+    // 初始化
+    loadStoredConfig();
+    // 注意：只有填写合约地址后才可 refreshReads；此处保持静默等待用户操作
+  </script>
+</body>
+</html>
+

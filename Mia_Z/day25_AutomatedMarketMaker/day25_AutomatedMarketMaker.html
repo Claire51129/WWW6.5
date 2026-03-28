@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Day25 AutomatedMarketMaker 前端面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 16px;
+      padding-bottom: 48px;
+      background: #0b1120;
+      color: #e5e7eb;
+    }
+    h1, h2 { margin: 0 0 12px; }
+    h1 { font-size: 1.35rem; font-weight: 700; }
+    .card {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .row > .card { flex: 1 1 300px; margin-bottom: 0; }
+    label { display: block; margin-bottom: 4px; font-size: 14px; color: #e5e7eb; }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #22c55e, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button.secondary { background: #334155; color: #e5e7eb; }
+    button.danger { background: linear-gradient(to right, #f97316, #dc2626); color: #fef2f2; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+    .hint { font-size: 12px; color: #9ca3af; margin: 0 0 10px; line-height: 1.5; }
+    code { background: #020617; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #4b5563;
+      margin-left: 8px;
+      color: #9ca3af;
+      vertical-align: middle;
+    }
+    .tag.ok { border-color: #22c55e; color: #86efac; }
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .kv {
+      background: #020617;
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid #334155;
+    }
+    .kv .k { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+    .kv .v { font-size: 15px; font-weight: 600; color: #f1f5f9; word-break: break-word; }
+    .profile-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #020617;
+      border: 2px solid rgba(148, 163, 184, 0.4);
+      background: #475569;
+      user-select: none;
+    }
+    .profile-meta { flex: 1; min-width: 200px; }
+    .profile-meta .addr {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 13px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+    table.tx-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.tx-table th, table.tx-table td {
+      border-bottom: 1px solid #334155;
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.tx-table th { color: #94a3b8; font-weight: 600; white-space: nowrap; }
+    table.tx-table tr:nth-child(even) td { background: rgba(2, 6, 23, 0.5); }
+    table.tx-table a { color: #38bdf8; }
+    .config-details {
+      margin-top: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.6);
+      overflow: hidden;
+    }
+    .config-details summary {
+      cursor: pointer;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #cbd5e1;
+      list-style: none;
+    }
+    .config-details summary::-webkit-details-marker { display: none; }
+    .config-inner { padding: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Day25 AutomatedMarketMaker 前端面板</h1>
+  <p class="hint">
+    与 <code>day25_AutomatedMarketMaker.sol</code> 配套：支持查看储备、添加/移除流动性、A/B 双向兑换、事件记录。<br />
+    技术栈：原生 HTML + JS，ethers v5（CDN）。底部填写 AMM 合约地址后即可使用。
+  </p>
+
+  <div class="card">
+    <h2>用户与连接</h2>
+    <div class="profile-row">
+      <div class="avatar" id="avatarEl">—</div>
+      <div class="profile-meta">
+        <div>
+          <strong>当前账户</strong>
+          <span class="tag" id="connStatusTag">未连接</span>
+        </div>
+        <div class="addr" id="userAddrDisplay">连接钱包后显示地址。</div>
+        <div class="hint" id="contractAddrDisplayWrap">AMM 合约：<code id="contractAddrDisplay">未配置</code></div>
+      </div>
+      <div>
+        <button id="connectBtn" type="button">连接 MetaMask</button>
+        <button class="secondary" id="refreshReadBtn" type="button">刷新只读数据</button>
+      </div>
+    </div>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>池子与 LP 总览</h2>
+    <div class="kv-grid">
+      <div class="kv"><div class="k">tokenA</div><div class="v" id="ovTokenA">—</div></div>
+      <div class="kv"><div class="k">tokenB</div><div class="v" id="ovTokenB">—</div></div>
+      <div class="kv"><div class="k">reserveA</div><div class="v" id="ovReserveA">—</div></div>
+      <div class="kv"><div class="k">reserveB</div><div class="v" id="ovReserveB">—</div></div>
+      <div class="kv"><div class="k">LP totalSupply</div><div class="v" id="ovLpSupply">—</div></div>
+      <div class="kv"><div class="k">我的 LP 余额</div><div class="v" id="ovMyLp">—</div></div>
+      <div class="kv"><div class="k">池子价格 A->B</div><div class="v" id="ovPriceAB">—</div></div>
+      <div class="kv"><div class="k">池子价格 B->A</div><div class="v" id="ovPriceBA">—</div></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>添加流动性</h2>
+      <label>amountA（按 tokenA 小数位）</label>
+      <input id="inAddA" type="text" inputmode="decimal" placeholder="例如 10" autocomplete="off" />
+      <label>amountB（按 tokenB 小数位）</label>
+      <input id="inAddB" type="text" inputmode="decimal" placeholder="例如 20" autocomplete="off" />
+      <button id="btnApproveAForAdd" class="secondary" type="button">1) 授权 tokenA</button>
+      <button id="btnApproveBForAdd" class="secondary" type="button">2) 授权 tokenB</button>
+      <button id="btnAddLiquidity" type="button">3) addLiquidity</button>
+      <div class="status" id="stAdd"></div>
+    </div>
+
+    <div class="card">
+      <h2>移除流动性</h2>
+      <label>要移除的 LP 数量</label>
+      <input id="inRemoveLp" type="text" inputmode="decimal" placeholder="例如 1.5" autocomplete="off" />
+      <button class="danger" id="btnRemoveLiquidity" type="button">removeLiquidity</button>
+      <div class="status" id="stRemove"></div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top: 12px;">
+    <div class="card">
+      <h2>兑换 A -> B</h2>
+      <label>amountAIn</label>
+      <input id="inSwapAIn" type="text" inputmode="decimal" placeholder="例如 1" autocomplete="off" />
+      <label>minBOut</label>
+      <input id="inSwapMinB" type="text" inputmode="decimal" placeholder="例如 0.9" autocomplete="off" />
+      <div class="hint" id="quoteAB">预估输出：—</div>
+      <button class="secondary" id="btnApproveAForSwap" type="button">授权 tokenA</button>
+      <button id="btnSwapAforB" type="button">swapAforB</button>
+      <div class="status" id="stSwapAB"></div>
+    </div>
+
+    <div class="card">
+      <h2>兑换 B -> A</h2>
+      <label>amountBIn</label>
+      <input id="inSwapBIn" type="text" inputmode="decimal" placeholder="例如 1" autocomplete="off" />
+      <label>minAOut</label>
+      <input id="inSwapMinA" type="text" inputmode="decimal" placeholder="例如 0.9" autocomplete="off" />
+      <div class="hint" id="quoteBA">预估输出：—</div>
+      <button class="secondary" id="btnApproveBForSwap" type="button">授权 tokenB</button>
+      <button id="btnSwapBforA" type="button">swapBforA</button>
+      <div class="status" id="stSwapBA"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>交易记录（链上事件）</h2>
+    <p class="hint">展示 LiquidityAdded / LiquidityRemoved / TokensSwapped，默认按当前地址相关事件筛选。</p>
+    <button class="secondary" id="btnLoadTx" type="button">加载 / 刷新事件</button>
+    <div class="status" id="txLoadStatus"></div>
+    <div style="overflow-x: auto; margin-top: 12px;">
+      <table class="tx-table">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>事件</th>
+            <th>摘要</th>
+            <th>区块</th>
+            <th>交易</th>
+          </tr>
+        </thead>
+        <tbody id="txTableBody">
+          <tr><td colspan="5">连接后可加载。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <details class="config-details">
+    <summary>高级配置（AMM 地址、事件扫描）</summary>
+    <div class="config-inner">
+      <label>AMM 合约地址</label>
+      <input id="contractAddress" placeholder="0x..." autocomplete="off" />
+      <label>事件起始区块（可选）</label>
+      <input id="fromBlockInput" placeholder="例如部署区块号" inputmode="numeric" autocomplete="off" />
+      <button class="secondary" id="btnSaveConfig" type="button">保存配置</button>
+      <span class="tag" id="configSavedTag" style="display: none;">已保存</span>
+    </div>
+  </details>
+
+  <script>
+    const LS_ADDR = "day25_amm_contract";
+    const LS_BLOCK = "day25_amm_from_block";
+
+    const AMM_ABI = [
+      "function tokenA() view returns (address)",
+      "function tokenB() view returns (address)",
+      "function reserveA() view returns (uint256)",
+      "function reserveB() view returns (uint256)",
+      "function totalSupply() view returns (uint256)",
+      "function balanceOf(address) view returns (uint256)",
+      "function addLiquidity(uint256 amountA, uint256 amountB) external",
+      "function removeLiquidity(uint256 liquidityToRemove) external returns (uint256 amountAOut, uint256 amountBOut)",
+      "function swapAforB(uint256 amountAIn, uint256 minBOut) external",
+      "function swapBforA(uint256 amountBIn, uint256 minAOut) external",
+      "function quoteAforB(uint256 amountAIn) external view returns (uint256 amountBOut)",
+      "function quoteBforA(uint256 amountBIn) external view returns (uint256 amountAOut)",
+      "function sync() external",
+      "event LiquidityAdded(address indexed provider, uint256 amountA, uint256 amountB, uint256 liquidity)",
+      "event LiquidityRemoved(address indexed provider, uint256 amountA, uint256 amountB, uint256 liquidity)",
+      "event TokensSwapped(address indexed trader, address tokenIn, uint256 amountIn, address tokenOut, uint256 amountOut)"
+    ];
+    const ERC20_ABI = [
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+      "function allowance(address owner, address spender) view returns (uint256)",
+      "function approve(address spender, uint256 amount) external returns (bool)"
+    ];
+    const EXPLORER_TX = {
+      "0x1": "https://etherscan.io/tx/",
+      "0x5": "https://goerli.etherscan.io/tx/",
+      "0xaa36a7": "https://sepolia.etherscan.io/tx/",
+      "0x13881": "https://mumbai.polygonscan.com/tx/",
+      "0x89": "https://polygonscan.com/tx/",
+      "0xa4b1": "https://arbiscan.io/tx/",
+      "0x2105": "https://basescan.org/tx/"
+    };
+
+    let provider = null;
+    let signer = null;
+    let contract = null;
+    let tokenAContract = null;
+    let tokenBContract = null;
+    let chainIdHex = null;
+    let tokenInfo = { addrA: null, addrB: null, symbolA: "A", symbolB: "B", decimalsA: 18, decimalsB: 18 };
+
+    const connStatusTag = document.getElementById("connStatusTag");
+    const userAddrDisplay = document.getElementById("userAddrDisplay");
+    const avatarEl = document.getElementById("avatarEl");
+    const globalStatus = document.getElementById("globalStatus");
+    const contractAddrDisplay = document.getElementById("contractAddrDisplay");
+
+    const contractAddressInput = document.getElementById("contractAddress");
+    const fromBlockInput = document.getElementById("fromBlockInput");
+
+    const ovTokenA = document.getElementById("ovTokenA");
+    const ovTokenB = document.getElementById("ovTokenB");
+    const ovReserveA = document.getElementById("ovReserveA");
+    const ovReserveB = document.getElementById("ovReserveB");
+    const ovLpSupply = document.getElementById("ovLpSupply");
+    const ovMyLp = document.getElementById("ovMyLp");
+    const ovPriceAB = document.getElementById("ovPriceAB");
+    const ovPriceBA = document.getElementById("ovPriceBA");
+
+    const txTableBody = document.getElementById("txTableBody");
+    const txLoadStatus = document.getElementById("txLoadStatus");
+    const configSavedTag = document.getElementById("configSavedTag");
+
+    const quoteAB = document.getElementById("quoteAB");
+    const quoteBA = document.getElementById("quoteBA");
+
+    function setGlobalStatus(msg) { globalStatus.textContent = msg || ""; }
+    function shortAddr(addr) { return addr ? (addr.slice(0, 8) + "..." + addr.slice(-6)) : "—"; }
+
+    function updateAvatar(addr) {
+      if (!addr || addr.length < 4) { avatarEl.textContent = "—"; avatarEl.style.background = "#475569"; return; }
+      avatarEl.textContent = (addr.slice(2, 6) + addr.slice(-2)).toUpperCase().slice(0, 4);
+      let h = 0;
+      for (let i = 2; i < addr.length; i++) h = (h * 17 + addr.charCodeAt(i)) % 360;
+      avatarEl.style.background = "hsl(" + h + ", 65%, 55%)";
+    }
+
+    function updateContractDisplay() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) { contractAddrDisplay.textContent = "未配置"; return; }
+      try { contractAddrDisplay.textContent = shortAddr(ethers.utils.getAddress(addr)); }
+      catch (e) { contractAddrDisplay.textContent = shortAddr(addr); }
+    }
+
+    function requireContractAddress() {
+      const addr = contractAddressInput.value.trim();
+      if (!addr) throw new Error("请先在高级配置填写 AMM 合约地址。");
+      if (!ethers.utils.isAddress(addr)) throw new Error("AMM 合约地址格式不正确。");
+      return ethers.utils.getAddress(addr);
+    }
+
+    function parseInputByDecimals(id, decimals) {
+      const raw = document.getElementById(id).value.trim();
+      if (!raw) throw new Error("请输入数值。");
+      try { return ethers.utils.parseUnits(raw, decimals); }
+      catch (e) { throw new Error("输入格式错误，请输入合法数字。"); }
+    }
+
+    function toDisplay(bn, decimals, symbol) {
+      return ethers.utils.formatUnits(bn, decimals) + " " + symbol;
+    }
+
+    function getFromBlock() {
+      const v = fromBlockInput.value.trim();
+      if (!v) return 0;
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    }
+
+    async function refreshChainId() {
+      if (!window.ethereum) return;
+      try { chainIdHex = await window.ethereum.request({ method: "eth_chainId" }); }
+      catch (e) { chainIdHex = null; }
+    }
+
+    function txExplorerUrl(hash) {
+      if (!hash || !chainIdHex) return null;
+      const base = EXPLORER_TX[chainIdHex.toLowerCase()];
+      return base ? base + hash : null;
+    }
+
+    async function ensureConnection() {
+      if (!window.ethereum) throw new Error("未检测到 MetaMask。");
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      if (!signer) {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const a = accounts[0] || "";
+        connStatusTag.textContent = a ? ("已连接: " + a.slice(0, 6) + "..." + a.slice(-4)) : "已连接";
+        connStatusTag.classList.add("ok");
+        userAddrDisplay.textContent = a || "—";
+        updateAvatar(a);
+      }
+      await refreshChainId();
+      await initContracts(true);
+    }
+
+    async function initContracts(useSigner) {
+      const addr = requireContractAddress();
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      contract = new ethers.Contract(addr, AMM_ABI, useSigner && signer ? signer : provider);
+      const [addrA, addrB] = await Promise.all([contract.tokenA(), contract.tokenB()]);
+      tokenInfo.addrA = addrA;
+      tokenInfo.addrB = addrB;
+
+      tokenAContract = new ethers.Contract(addrA, ERC20_ABI, useSigner && signer ? signer : provider);
+      tokenBContract = new ethers.Contract(addrB, ERC20_ABI, useSigner && signer ? signer : provider);
+
+      let symbolA = "A", symbolB = "B", decimalsA = 18, decimalsB = 18;
+      try { symbolA = await tokenAContract.symbol(); } catch (e) {}
+      try { symbolB = await tokenBContract.symbol(); } catch (e) {}
+      try { decimalsA = await tokenAContract.decimals(); } catch (e) {}
+      try { decimalsB = await tokenBContract.decimals(); } catch (e) {}
+      tokenInfo.symbolA = symbolA;
+      tokenInfo.symbolB = symbolB;
+      tokenInfo.decimalsA = Number(decimalsA);
+      tokenInfo.decimalsB = Number(decimalsB);
+    }
+
+    async function refreshReads() {
+      const addr = requireContractAddress();
+      if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+      await initContracts(Boolean(signer));
+
+      const [rA, rB, lpSupply] = await Promise.all([
+        contract.reserveA(),
+        contract.reserveB(),
+        contract.totalSupply()
+      ]);
+      let myLp = ethers.constants.Zero;
+      if (signer) {
+        const me = await signer.getAddress();
+        myLp = await contract.balanceOf(me);
+      }
+
+      ovTokenA.textContent = tokenInfo.symbolA + " (" + shortAddr(tokenInfo.addrA) + ")";
+      ovTokenB.textContent = tokenInfo.symbolB + " (" + shortAddr(tokenInfo.addrB) + ")";
+      ovReserveA.textContent = toDisplay(rA, tokenInfo.decimalsA, tokenInfo.symbolA);
+      ovReserveB.textContent = toDisplay(rB, tokenInfo.decimalsB, tokenInfo.symbolB);
+      ovLpSupply.textContent = ethers.utils.formatEther(lpSupply) + " LP";
+      ovMyLp.textContent = ethers.utils.formatEther(myLp) + " LP";
+      if (rA.gt(0) && rB.gt(0)) {
+        // 价格仅用于展示：1A 值多少 B；1B 值多少 A（按 token 小数位换算）
+        const scaleA = ethers.BigNumber.from(10).pow(tokenInfo.decimalsA);
+        const scaleB = ethers.BigNumber.from(10).pow(tokenInfo.decimalsB);
+        const pAB = ethers.utils.formatUnits(rB.mul(scaleA).div(rA), tokenInfo.decimalsB);
+        const pBA = ethers.utils.formatUnits(rA.mul(scaleB).div(rB), tokenInfo.decimalsA);
+        ovPriceAB.textContent = pAB + " " + tokenInfo.symbolB + " / " + tokenInfo.symbolA;
+        ovPriceBA.textContent = pBA + " " + tokenInfo.symbolA + " / " + tokenInfo.symbolB;
+      } else {
+        ovPriceAB.textContent = "—";
+        ovPriceBA.textContent = "—";
+      }
+
+      await updateQuotes();
+    }
+
+    async function updateQuotes() {
+      if (!contract) return;
+      try {
+        const aIn = document.getElementById("inSwapAIn").value.trim();
+        if (aIn) {
+          const amountAIn = ethers.utils.parseUnits(aIn, tokenInfo.decimalsA);
+          const outB = await contract.quoteAforB(amountAIn);
+          quoteAB.textContent = "预估输出: " + toDisplay(outB, tokenInfo.decimalsB, tokenInfo.symbolB) + "（链上 quote，含 0.3%）";
+        } else quoteAB.textContent = "预估输出：—";
+      } catch (e) { quoteAB.textContent = "预估输出：输入格式错误或合约不支持 quote"; }
+
+      try {
+        const bIn = document.getElementById("inSwapBIn").value.trim();
+        if (bIn) {
+          const amountBIn = ethers.utils.parseUnits(bIn, tokenInfo.decimalsB);
+          const outA = await contract.quoteBforA(amountBIn);
+          quoteBA.textContent = "预估输出: " + toDisplay(outA, tokenInfo.decimalsA, tokenInfo.symbolA) + "（链上 quote，含 0.3%）";
+        } else quoteBA.textContent = "预估输出：—";
+      } catch (e) { quoteBA.textContent = "预估输出：输入格式错误或合约不支持 quote"; }
+    }
+
+    async function bindTx(btnId, stId, fnName, txFn) {
+      const btn = document.getElementById(btnId);
+      const st = document.getElementById(stId);
+      btn.addEventListener("click", async function () {
+        st.textContent = "";
+        try {
+          await ensureConnection();
+          st.textContent = "发送 " + fnName + "...";
+          const tx = await txFn();
+          st.textContent += "\nTX: " + tx.hash + "，等待确认...";
+          const receipt = await tx.wait();
+          st.textContent += "\n已确认，区块: " + receipt.blockNumber;
+          await refreshReads();
+          await loadTransactions();
+        } catch (err) {
+          st.textContent = "失败: " + (err.data?.message || err.reason || err.message || err);
+        }
+      });
+    }
+
+    async function approveToken(tokenContract, tokenSymbol, amountBn, statusEl) {
+      await ensureConnection();
+      const me = await signer.getAddress();
+      const ammAddr = contract.address;
+      const allowance = await tokenContract.allowance(me, ammAddr);
+      if (allowance.gte(amountBn)) {
+        statusEl.textContent = tokenSymbol + " allowance 已足够，无需重复授权。";
+        return;
+      }
+      statusEl.textContent = "发送 approve(" + tokenSymbol + ")...";
+      const tx = await tokenContract.approve(ammAddr, amountBn);
+      statusEl.textContent += "\nTX: " + tx.hash + "，等待确认...";
+      await tx.wait();
+      statusEl.textContent += "\n授权完成。";
+    }
+
+    async function loadTransactions() {
+      txLoadStatus.textContent = "正在加载事件...";
+      txTableBody.innerHTML = "";
+      try {
+        await ensureConnection();
+        const me = await signer.getAddress();
+        const fb = getFromBlock();
+        const filters = [
+          { t: "LiquidityAdded", f: contract.filters.LiquidityAdded(me, null, null, null) },
+          { t: "LiquidityRemoved", f: contract.filters.LiquidityRemoved(me, null, null, null) },
+          { t: "TokensSwapped", f: contract.filters.TokensSwapped(me, null, null, null, null) }
+        ];
+        const logs = [];
+        for (let i = 0; i < filters.length; i++) {
+          const ls = await contract.queryFilter(filters[i].f, fb, "latest");
+          for (let j = 0; j < ls.length; j++) logs.push({ type: filters[i].t, log: ls[j] });
+        }
+        logs.sort(function (a, b) {
+          if (a.log.blockNumber !== b.log.blockNumber) return a.log.blockNumber - b.log.blockNumber;
+          return a.log.logIndex - b.log.logIndex;
+        });
+
+        if (logs.length === 0) {
+          txTableBody.innerHTML = "<tr><td colspan=\"5\">暂无事件。</td></tr>";
+          txLoadStatus.textContent = "共 0 条。";
+          return;
+        }
+
+        txTableBody.innerHTML = "";
+        const blockCache = {};
+        for (let i = 0; i < logs.length; i++) {
+          const it = logs[i];
+          const parsed = contract.interface.parseLog(it.log);
+          const bn = it.log.blockNumber;
+          if (blockCache[bn] === undefined) {
+            const block = await provider.getBlock(bn);
+            blockCache[bn] = block ? block.timestamp : 0;
+          }
+          const timeStr = blockCache[bn] ? new Date(blockCache[bn] * 1000).toLocaleString() : "—";
+          const hash = it.log.transactionHash;
+          const url = txExplorerUrl(hash);
+          const hashCell = url ? "<a href=\"" + url + "\" target=\"_blank\" rel=\"noopener\">" + hash.slice(0, 10) + "...</a>" : hash;
+
+          let summary = "";
+          if (it.type === "LiquidityAdded") {
+            summary = "+" + toDisplay(parsed.args.amountA, tokenInfo.decimalsA, tokenInfo.symbolA) + ", +" +
+              toDisplay(parsed.args.amountB, tokenInfo.decimalsB, tokenInfo.symbolB) + ", mint " +
+              ethers.utils.formatEther(parsed.args.liquidity) + " LP";
+          } else if (it.type === "LiquidityRemoved") {
+            summary = "-" + toDisplay(parsed.args.amountA, tokenInfo.decimalsA, tokenInfo.symbolA) + ", -" +
+              toDisplay(parsed.args.amountB, tokenInfo.decimalsB, tokenInfo.symbolB) + ", burn " +
+              ethers.utils.formatEther(parsed.args.liquidity) + " LP";
+          } else {
+            const tokenIn = (parsed.args.tokenIn || "").toLowerCase();
+            const tokenOut = (parsed.args.tokenOut || "").toLowerCase();
+            const inIsA = tokenIn === (tokenInfo.addrA || "").toLowerCase();
+            const outIsA = tokenOut === (tokenInfo.addrA || "").toLowerCase();
+            const inDec = inIsA ? tokenInfo.decimalsA : tokenInfo.decimalsB;
+            const outDec = outIsA ? tokenInfo.decimalsA : tokenInfo.decimalsB;
+            const inSym = inIsA ? tokenInfo.symbolA : tokenInfo.symbolB;
+            const outSym = outIsA ? tokenInfo.symbolA : tokenInfo.symbolB;
+            summary = "in " + ethers.utils.formatUnits(parsed.args.amountIn, inDec) + " " + inSym +
+              " -> out " + ethers.utils.formatUnits(parsed.args.amountOut, outDec) + " " + outSym;
+          }
+
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + timeStr + "</td>" +
+            "<td>" + it.type + "</td>" +
+            "<td>" + summary + "</td>" +
+            "<td>" + bn + "</td>" +
+            "<td style=\"font-family:monospace;font-size:11px;\">" + hashCell + "</td>";
+          txTableBody.appendChild(tr);
+        }
+        txLoadStatus.textContent = "共 " + logs.length + " 条。";
+      } catch (err) {
+        txLoadStatus.textContent = "加载失败: " + (err.data?.message || err.reason || err.message || err);
+        txTableBody.innerHTML = "<tr><td colspan=\"5\">加载失败</td></tr>";
+      }
+    }
+
+    bindTx("btnAddLiquidity", "stAdd", "addLiquidity", async function () {
+      const amountA = parseInputByDecimals("inAddA", tokenInfo.decimalsA);
+      const amountB = parseInputByDecimals("inAddB", tokenInfo.decimalsB);
+      return contract.addLiquidity(amountA, amountB);
+    });
+
+    bindTx("btnRemoveLiquidity", "stRemove", "removeLiquidity", async function () {
+      const lp = parseInputByDecimals("inRemoveLp", 18);
+      return contract.removeLiquidity(lp);
+    });
+
+    bindTx("btnSwapAforB", "stSwapAB", "swapAforB", async function () {
+      const aIn = parseInputByDecimals("inSwapAIn", tokenInfo.decimalsA);
+      const minB = parseInputByDecimals("inSwapMinB", tokenInfo.decimalsB);
+      return contract.swapAforB(aIn, minB);
+    });
+
+    bindTx("btnSwapBforA", "stSwapBA", "swapBforA", async function () {
+      const bIn = parseInputByDecimals("inSwapBIn", tokenInfo.decimalsB);
+      const minA = parseInputByDecimals("inSwapMinA", tokenInfo.decimalsA);
+      return contract.swapBforA(bIn, minA);
+    });
+
+    document.getElementById("btnApproveAForAdd").addEventListener("click", async function () {
+      const st = document.getElementById("stAdd");
+      try {
+        const amount = parseInputByDecimals("inAddA", tokenInfo.decimalsA);
+        await approveToken(tokenAContract, tokenInfo.symbolA, amount, st);
+      } catch (err) { st.textContent = "失败: " + (err.data?.message || err.reason || err.message || err); }
+    });
+    document.getElementById("btnApproveBForAdd").addEventListener("click", async function () {
+      const st = document.getElementById("stAdd");
+      try {
+        const amount = parseInputByDecimals("inAddB", tokenInfo.decimalsB);
+        await approveToken(tokenBContract, tokenInfo.symbolB, amount, st);
+      } catch (err) { st.textContent = "失败: " + (err.data?.message || err.reason || err.message || err); }
+    });
+    document.getElementById("btnApproveAForSwap").addEventListener("click", async function () {
+      const st = document.getElementById("stSwapAB");
+      try {
+        const amount = parseInputByDecimals("inSwapAIn", tokenInfo.decimalsA);
+        await approveToken(tokenAContract, tokenInfo.symbolA, amount, st);
+      } catch (err) { st.textContent = "失败: " + (err.data?.message || err.reason || err.message || err); }
+    });
+    document.getElementById("btnApproveBForSwap").addEventListener("click", async function () {
+      const st = document.getElementById("stSwapBA");
+      try {
+        const amount = parseInputByDecimals("inSwapBIn", tokenInfo.decimalsB);
+        await approveToken(tokenBContract, tokenInfo.symbolB, amount, st);
+      } catch (err) { st.textContent = "失败: " + (err.data?.message || err.reason || err.message || err); }
+    });
+
+    document.getElementById("connectBtn").addEventListener("click", async function () {
+      try {
+        setGlobalStatus("连接中...");
+        await ensureConnection();
+        await refreshReads();
+        await loadTransactions();
+        setGlobalStatus("已连接并刷新。");
+      } catch (err) {
+        setGlobalStatus("失败: " + (err.message || err));
+      }
+    });
+
+    document.getElementById("refreshReadBtn").addEventListener("click", async function () {
+      try {
+        if (!window.ethereum) throw new Error("需要 MetaMask。");
+        if (!provider) provider = new ethers.providers.Web3Provider(window.ethereum);
+        await refreshReads();
+        setGlobalStatus("只读数据已刷新。");
+      } catch (err) {
+        setGlobalStatus("刷新失败: " + (err.message || err));
+      }
+    });
+
+    document.getElementById("btnLoadTx").addEventListener("click", async function () { await loadTransactions(); });
+    document.getElementById("btnSaveConfig").addEventListener("click", function () {
+      localStorage.setItem(LS_ADDR, contractAddressInput.value.trim());
+      localStorage.setItem(LS_BLOCK, fromBlockInput.value.trim());
+      configSavedTag.style.display = "inline-block";
+      setTimeout(function () { configSavedTag.style.display = "none"; }, 1800);
+      updateContractDisplay();
+    });
+
+    contractAddressInput.addEventListener("input", function () { updateContractDisplay(); });
+    document.getElementById("inSwapAIn").addEventListener("input", async function () {
+      try {
+        if (!contract) return;
+        await updateQuotes();
+      } catch (e) {}
+    });
+    document.getElementById("inSwapBIn").addEventListener("input", async function () {
+      try {
+        if (!contract) return;
+        await updateQuotes();
+      } catch (e) {}
+    });
+
+    (function init() {
+      const a = localStorage.getItem(LS_ADDR);
+      const b = localStorage.getItem(LS_BLOCK);
+      if (a) contractAddressInput.value = a;
+      if (b) fromBlockInput.value = b;
+      updateContractDisplay();
+    })();
+  </script>
+</body>
+</html>
