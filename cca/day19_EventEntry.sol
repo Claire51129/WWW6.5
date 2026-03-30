@@ -17,12 +17,12 @@ contract EventEntry {
 
     constructor(string memory _eventName, uint256 _eventDate_unix, uint256 _maxAttendees) {
         eventName = _eventName;
-        eventDate = _eventDate_unix;
+        eventDate = _eventDate_unix;//现在+1天或者未来时间戳 后者搜索unix timestamp
         maxAttendees = _maxAttendees;
         organizer = msg.sender;
         isEventActive = true;
 
-        emit EventCreated(_eventName, _eventDate_unix, _maxAttendees);
+        emit EventCreated(_eventName, _eventDate_unix, _maxAttendees);//部署时就是创建第一个事件
     }
 
     modifier onlyOrganizer() {
@@ -35,13 +35,14 @@ contract EventEntry {
         emit EventStatusChanged(_isActive);
     }
 
-    function getMessageHash(address _attendee) public view returns (bytes32) {
+    function getMessageHash(address _attendee)public view returns(bytes32){
         return keccak256(abi.encodePacked(address(this), eventName, _attendee));
     }
 
-    function getEthSignedMessageHash(bytes32 _messageHash) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash));
+    function getEthSignedMessageHash(bytes32 _messageHash)public pure returns(bytes32){
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32",_messageHash));
     }
+    //view只读不改 可以访问状态变量 pure不读不改 不能读取变量 适用数学运算 哈希 格式转换等；都免费
 
     function verifySignature(address _attendee, bytes memory _signature) public view returns (bool) {
         bytes32 messageHash = getMessageHash(_attendee);
@@ -61,11 +62,15 @@ contract EventEntry {
         uint8 v;
 
         assembly {
-            r := mload(add(_signature, 32))
+            //mload =Memory Load“给我内存中某个位置的数据”
+            r := mload(add(_signature, 32))//变量_signature作为指向起始地址的指针 add(start.偏移量)是一个指针运算 在起始地址上向后偏移32字节
+            //solidity内存布局中 动态数组如bytes在内存中 前32字节存储数组长度 之后存储实际的数据
             s := mload(add(_signature, 64))
             v := byte(0, mload(add(_signature, 96)))
-        }
+            //byte(0,x)位运算辅助函数，作用是从读取的 32 字节数据x中，提取第 0 个字节(最高位)
+        }//汇编是一种直接从内存访问数据的低级方法
 
+        //修复v值 或0或1 以太坊预计是27/28
         if (v < 27) {
             v += 27;
         }
@@ -75,12 +80,12 @@ contract EventEntry {
         return ecrecover(_ethSignedMessageHash, v, r, s);
     }
 
-    function checkIn(bytes memory _signature) external {
+    function checkIn(bytes memory _signature) external{
         require(isEventActive, "Event is not active");
-        require(block.timestamp <= eventDate + 1 days, "Event has ended");
-        require(!hasAttended[msg.sender], "Attendee has already checked in");
+        require(block.timestamp <= eventDate +1 days,"Event has ended");
         require(attendeeCount < maxAttendees, "Maximum attendees reached");
         require(verifySignature(msg.sender, _signature), "Invalid signature");
+        require(!hasAttended[msg.sender], "Attendee has already checked in");
 
         hasAttended[msg.sender] = true;
         attendeeCount++;

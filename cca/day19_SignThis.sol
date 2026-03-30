@@ -88,6 +88,7 @@ contract SignThis {
 
             if (hasAttended[attendee]) continue;  // 跳过已签到的
 
+        //链上用相同的消息哈希(不可逆 验证完整性 保证未被篡改)和提交的签名计算出signer是否和预设organizer相同
             bytes32 messageHash = keccak256(abi.encodePacked(
                 attendee,
                 address(this),
@@ -116,17 +117,11 @@ contract SignThis {
         bytes32 r,
         bytes32 s
     ) external view returns (bool) {
-        bytes32 messageHash = keccak256(abi.encodePacked(
-            attendee,
-            address(this),
-            eventName
-        ));
-
+        bytes32 messageHash = keccak256(abi.encodePacked(attendee, address(this), eventName));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked(
             "\x19Ethereum Signed Message:\n32",
             messageHash
         ));
-
         address signer = ecrecover(ethSignedMessageHash, v, r, s);
         return signer == organizer;
     }
@@ -156,3 +151,15 @@ contract SignThis {
         return (eventName, eventDate, maxAttendees, attendeeCount, isEventActive);
     }
 }
+/*// EIP-712 提供更安全的结构化签名
+struct Permit {
+    address owner;
+    address spender;
+    uint256 value;
+    uint256 nonce;
+    uint256 deadline;
+}
+
+bytes32 constant PERMIT_TYPEHASH = keccak256(
+    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+);*/
